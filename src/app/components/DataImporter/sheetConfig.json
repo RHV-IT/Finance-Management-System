@@ -1,0 +1,783 @@
+{
+  "connections": [
+    {
+      "id": "store-stock-register",
+      "dept": "Store",
+      "module": "stock_register",
+      "label": "Stock Register",
+      "sheetId": "",
+      "tabName": "Stock Register",
+      "range": "A:M",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "columnMap": {
+        "itemCode": "Item Code",
+        "name": "Item Description",
+        "uom": "UOM",
+        "openingQty": "Opening Qty",
+        "qty": "Current Qty in Stock",
+        "unitCost": "Unit Cost",
+        "totalValue": "Total Stock Value",
+        "reorder": "Reorder Level",
+        "reorderQty": "Reorder Qty",
+        "lastReceived": "Last Receipt Date",
+        "lastIssued": "Last Issue Date"
+      },
+      "visualizations": [
+        {
+          "id": "viz-stock-001",
+          "type": "kpi",
+          "label": "Total Inventory Value",
+          "field": "totalValue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue"
+        },
+        {
+          "id": "viz-stock-002",
+          "type": "kpi",
+          "label": "Items Below Reorder",
+          "field": "qty",
+          "agg": "count",
+          "format": "number",
+          "color": "red"
+        },
+        {
+          "id": "viz-stock-003",
+          "type": "bar",
+          "title": "Top 10 Highest Valued Items",
+          "xField": "name",
+          "yField": "totalValue",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-stock-004",
+          "type": "table",
+          "title": "Stock Register",
+          "columns": [
+            "itemCode",
+            "name",
+            "uom",
+            "openingQty",
+            "qty",
+            "unitCost",
+            "totalValue",
+            "reorder",
+            "reorderQty",
+            "lastReceived",
+            "lastIssued"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "Stock Register tab",
+          "requiredFields": [
+            "name",
+            "qty",
+            "unitCost",
+            "totalValue"
+          ]
+        },
+        {
+          "page": "overview",
+          "section": "KPI — Total Stock Value",
+          "requiredFields": [
+            "totalValue"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store-srv-receipts",
+      "dept": "Store",
+      "module": "srv_receipts",
+      "label": "SRV Receipts",
+      "sheetId": "12rwCvA2riams6d_Gu31vx8t-DmBS3CctKyAY8iXIMpo",
+      "tabName": "SRV Receipts",
+      "range": "A:J",
+      "headerRow": 5,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "date": "Date",
+        "vendor": "Vendor",
+        "itemCode": "Item Code",
+        "name": "Item Description",
+        "uom": "UOM",
+        "invoiceRef": "Invoice/Waybill",
+        "qtyRequested": "Qty Requested",
+        "unitPrice": "Unit Price",
+        "total": "Total (Amount)"
+      },
+      "visualizations": [
+        {
+          "id": "viz-srv-001",
+          "type": "kpi",
+          "label": "Total Received Value",
+          "field": "total",
+          "agg": "sum",
+          "format": "currency",
+          "color": "green"
+        },
+        {
+          "id": "viz-srv-002",
+          "type": "bar",
+          "title": "Top Vendors by Spend",
+          "xField": "vendor",
+          "yField": "total",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-srv-003",
+          "type": "table",
+          "title": "SRV Receipts",
+          "columns": [
+            "date",
+            "vendor",
+            "itemCode",
+            "name",
+            "uom",
+            "invoiceRef",
+            "qtyRequested",
+            "unitPrice",
+            "total"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "SRV Receipts tab",
+          "requiredFields": [
+            "name",
+            "qtyRequested",
+            "total"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store-siv-issues",
+      "dept": "Store",
+      "module": "stock_out",
+      "label": "SIV Issues",
+      "sheetId": "",
+      "tabName": "SIV Issues",
+      "range": "A:H",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "date": "Date",
+        "name": "Item Description",
+        "qtyRequested": "Qty Requested",
+        "unitCost": "Unit Cost",
+        "qty": "Qty Issued",
+        "total": "Total",
+        "dept": "Department",
+        "recipient": "Recipient"
+      },
+      "visualizations": [
+        {
+          "id": "viz-siv-001",
+          "type": "kpi",
+          "label": "Total Issued Value",
+          "field": "total",
+          "agg": "sum",
+          "format": "currency",
+          "color": "amber"
+        },
+        {
+          "id": "viz-siv-002",
+          "type": "bar",
+          "title": "Top 10 Most Issued Items",
+          "xField": "name",
+          "yField": "qty",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-siv-003",
+          "type": "pie",
+          "title": "Issues by Department",
+          "catField": "dept",
+          "valField": "total"
+        },
+        {
+          "id": "viz-siv-004",
+          "type": "table",
+          "title": "SIV Issues",
+          "columns": [
+            "date",
+            "name",
+            "qtyRequested",
+            "unitCost",
+            "qty",
+            "total",
+            "dept",
+            "recipient"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "SIV Issues tab",
+          "requiredFields": [
+            "name",
+            "qty",
+            "total"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store-reorder-alerts",
+      "dept": "Store",
+      "module": "reorder_alerts",
+      "label": "Reorder Alerts",
+      "sheetId": "",
+      "tabName": "Reorder Alert",
+      "range": "A:F",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "columnMap": {
+        "itemCode": "Item Code",
+        "name": "Item Description",
+        "qty": "Current Stock",
+        "reorder": "Reorder Level",
+        "qtyRequired": "Qty Required",
+        "estReorderValue": "Est. Reorder Value"
+      },
+      "visualizations": [
+        {
+          "id": "viz-reorder-001",
+          "type": "kpi",
+          "label": "Est. Reorder Value",
+          "field": "estReorderValue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "purple"
+        },
+        {
+          "id": "viz-reorder-002",
+          "type": "table",
+          "title": "Reorder Alerts",
+          "columns": [
+            "itemCode",
+            "name",
+            "qty",
+            "reorder",
+            "qtyRequired",
+            "estReorderValue"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "Reorder Alerts tab",
+          "requiredFields": [
+            "name",
+            "qty",
+            "reorder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store-stock-movement",
+      "dept": "Store",
+      "module": "stock_movement",
+      "label": "Stock Movement",
+      "sheetId": "",
+      "tabName": "Stock Movement",
+      "range": "A:G",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "columnMap": {
+        "itemCode": "Item Code",
+        "name": "Item Description",
+        "openingBalance": "Opening Balance",
+        "totalReceipts": "Total Receipts",
+        "totalIssues": "Total Issues",
+        "closingBalance": "Closing Balance"
+      },
+      "visualizations": [
+        {
+          "id": "viz-mov-001",
+          "type": "bar",
+          "title": "Stock Movement — Receipts vs Issues",
+          "xField": "name",
+          "yField": "totalReceipts",
+          "limit": 10,
+          "sort": "none",
+          "orientation": "vertical"
+        },
+        {
+          "id": "viz-mov-002",
+          "type": "table",
+          "title": "Stock Movement Detail",
+          "columns": [
+            "itemCode",
+            "name",
+            "openingBalance",
+            "totalReceipts",
+            "totalIssues",
+            "closingBalance"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "Stock Movement tab",
+          "requiredFields": [
+            "name",
+            "openingBalance",
+            "totalReceipts",
+            "totalIssues",
+            "closingBalance"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "store-inventory-valuation",
+      "dept": "Store",
+      "module": "inventory_valuation",
+      "label": "Inventory Valuation",
+      "sheetId": "",
+      "tabName": "Inventory Valuation",
+      "range": "A:G",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "columnMap": {
+        "itemCode": "Item Code",
+        "name": "Item Description",
+        "qty": "Current Qty",
+        "unitCost": "Unit Cost",
+        "totalValue": "Stock Value",
+        "pctOfTotal": "% of Total",
+        "classification": "Classification"
+      },
+      "visualizations": [
+        {
+          "id": "viz-val-001",
+          "type": "pie",
+          "title": "ABC Classification",
+          "catField": "classification",
+          "valField": "totalValue"
+        },
+        {
+          "id": "viz-val-002",
+          "type": "bar",
+          "title": "Top 10 Highest Valued Items",
+          "xField": "name",
+          "yField": "totalValue",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-val-003",
+          "type": "table",
+          "title": "Inventory Valuation",
+          "columns": [
+            "itemCode",
+            "name",
+            "qty",
+            "unitCost",
+            "totalValue",
+            "pctOfTotal",
+            "classification"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "inventory",
+          "section": "Inventory Valuation tab",
+          "requiredFields": [
+            "name",
+            "qty",
+            "unitCost",
+            "totalValue"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pharmacy-dispensing",
+      "dept": "Pharmacy",
+      "module": "drug_dispensing",
+      "label": "Drug Dispensing",
+      "sheetId": "",
+      "tabName": "Dispensing",
+      "range": "A:J",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "date": "Date",
+        "drug": "Drug / Item",
+        "qty": "Quantity",
+        "unit": "Unit",
+        "patient": "Patient / Ward",
+        "prescriber": "Prescriber",
+        "dtype": "Patient Type",
+        "value": "Total Value"
+      },
+      "visualizations": [
+        {
+          "id": "viz-pharm-001",
+          "type": "kpi",
+          "label": "Total Dispensing Value",
+          "field": "value",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue"
+        },
+        {
+          "id": "viz-pharm-002",
+          "type": "bar",
+          "title": "Dispensing by Patient Type",
+          "xField": "dtype",
+          "yField": "qty",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "vertical"
+        },
+        {
+          "id": "viz-pharm-003",
+          "type": "table",
+          "title": "Dispensing Records",
+          "columns": [
+            "date",
+            "drug",
+            "qty",
+            "unit",
+            "patient",
+            "prescriber",
+            "dtype",
+            "value"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "pharmacy",
+          "section": "Dispensing Records table",
+          "requiredFields": [
+            "drug",
+            "qty",
+            "value"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "finance-revenue-monthly",
+      "dept": "Finance",
+      "module": "revenue_monthly",
+      "label": "Monthly Revenue & Expenses",
+      "sheetId": "",
+      "tabName": "Revenue Summary",
+      "range": "A:D",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "month": "Month",
+        "revenue": "Revenue",
+        "expenses": "Expenses",
+        "target": "Monthly Target"
+      },
+      "visualizations": [
+        {
+          "id": "viz-rev-001",
+          "type": "kpi",
+          "label": "Total Revenue YTD",
+          "field": "revenue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "green"
+        },
+        {
+          "id": "viz-rev-002",
+          "type": "kpi",
+          "label": "Total Expenses YTD",
+          "field": "expenses",
+          "agg": "sum",
+          "format": "currency",
+          "color": "red"
+        },
+        {
+          "id": "viz-rev-003",
+          "type": "bar",
+          "title": "Revenue vs Target",
+          "xField": "month",
+          "yField": "revenue",
+          "limit": 12,
+          "sort": "none",
+          "orientation": "vertical",
+          "targetLine": {
+            "field": "target",
+            "label": "Target"
+          }
+        },
+        {
+          "id": "viz-rev-004",
+          "type": "table",
+          "title": "Monthly Summary",
+          "columns": [
+            "month",
+            "revenue",
+            "expenses",
+            "target"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "overview",
+          "section": "Revenue vs Target chart + all KPI cards",
+          "requiredFields": [
+            "month",
+            "revenue",
+            "expenses"
+          ]
+        },
+        {
+          "page": "cashbook",
+          "section": "Monthly Cash Flow",
+          "requiredFields": [
+            "month",
+            "revenue",
+            "expenses"
+          ]
+        },
+        {
+          "page": "expenses",
+          "section": "Expenditure Analysis",
+          "requiredFields": [
+            "month",
+            "expenses"
+          ]
+        },
+        {
+          "page": "weekly",
+          "section": "Periodic Reports",
+          "requiredFields": [
+            "month",
+            "revenue",
+            "expenses"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "finance-debtors",
+      "dept": "Finance",
+      "module": "debtors",
+      "label": "Debtors / Receivables",
+      "sheetId": "",
+      "tabName": "Debtors",
+      "range": "A:E",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "category": "Category",
+        "amount": "Outstanding Amount",
+        "priority": "Priority",
+        "contact": "Contact",
+        "date": "Date"
+      },
+      "visualizations": [
+        {
+          "id": "viz-debt-001",
+          "type": "kpi",
+          "label": "Total Outstanding",
+          "field": "amount",
+          "agg": "sum",
+          "format": "currency",
+          "color": "red"
+        },
+        {
+          "id": "viz-debt-002",
+          "type": "bar",
+          "title": "Outstanding by Category",
+          "xField": "category",
+          "yField": "amount",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-debt-003",
+          "type": "table",
+          "title": "Debtors Ledger",
+          "columns": [
+            "category",
+            "amount",
+            "priority",
+            "contact",
+            "date"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "debtors",
+          "section": "Debtors table",
+          "requiredFields": [
+            "category",
+            "amount"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "procurement-purchase-orders",
+      "dept": "Procurement",
+      "module": "purchase_orders",
+      "label": "Purchase Orders",
+      "sheetId": "",
+      "tabName": "Purchase Orders",
+      "range": "A:I",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "poNo": "PO No",
+        "date": "Date",
+        "vendor": "Vendor",
+        "item": "Item / Description",
+        "qty": "Quantity",
+        "total": "Total Value",
+        "expectedDate": "Expected Delivery",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-po-001",
+          "type": "kpi",
+          "label": "Total PO Value",
+          "field": "total",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue"
+        },
+        {
+          "id": "viz-po-002",
+          "type": "bar",
+          "title": "Vendor Spend",
+          "xField": "vendor",
+          "yField": "total",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal"
+        },
+        {
+          "id": "viz-po-003",
+          "type": "pie",
+          "title": "PO Status Breakdown",
+          "catField": "status",
+          "valField": "total"
+        },
+        {
+          "id": "viz-po-004",
+          "type": "table",
+          "title": "Purchase Orders",
+          "columns": [
+            "poNo",
+            "date",
+            "vendor",
+            "item",
+            "qty",
+            "total",
+            "expectedDate",
+            "status"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "supplychain",
+          "section": "Purchase Orders table",
+          "requiredFields": [
+            "vendor",
+            "total"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "procurement-grn",
+      "dept": "Procurement",
+      "module": "goods_received",
+      "label": "Goods Received Notes",
+      "sheetId": "",
+      "tabName": "GRN",
+      "range": "A:I",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "columnMap": {
+        "grnNo": "GRN No",
+        "date": "Date",
+        "poRef": "PO Reference",
+        "vendor": "Vendor",
+        "item": "Item",
+        "poQty": "PO Quantity",
+        "recvQty": "Received Quantity",
+        "recvValue": "Received Value",
+        "condition": "Condition"
+      },
+      "visualizations": [
+        {
+          "id": "viz-grn-001",
+          "type": "kpi",
+          "label": "Total Received Value",
+          "field": "recvValue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "green"
+        },
+        {
+          "id": "viz-grn-002",
+          "type": "table",
+          "title": "GRN Register",
+          "columns": [
+            "grnNo",
+            "date",
+            "poRef",
+            "vendor",
+            "item",
+            "poQty",
+            "recvQty",
+            "recvValue",
+            "condition"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "grn",
+          "section": "GRN Register table",
+          "requiredFields": [
+            "vendor",
+            "recvQty",
+            "recvValue"
+          ]
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "version": 1,
+    "updatedAt": "2025-11-25T00:00:00.000Z",
+    "updatedBy": "system"
+  }
+}
