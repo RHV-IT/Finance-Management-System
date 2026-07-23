@@ -13,7 +13,7 @@ const n = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
 const TABS = [
   { key: 'overview',     label: '📊 Overview'         },
   { key: 'workforce',    label: '👥 Workforce'        },
-  { key: 'lnd',        labe: 'L & D'                },
+  { key: 'lnd',        labe: '🕐L&D'                },
   { key: 'attendance',   label: '🕐 Attendance'       },
   { key: 'leave',        label: '🏖 Leave Requests'   },
   { key: 'initiatives',        label: '🏖 Initiatives'   },

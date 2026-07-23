@@ -11,7 +11,7 @@ const iStyle = {
 };
  
 const PAGES = ['inventory','pharmacy','store','overview','revenue','cashbook',
-               'expenses','grn','supplychain','debtors','assets','kpi','weekly'];
+               'expenses','grn','supplychain','debtors','assets','kpi','weekly', 'hr', 'it'];
  
 // Common field names — left side suggestions
 const FIELD_SUGGESTIONS = [
