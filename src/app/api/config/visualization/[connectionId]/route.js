@@ -6,7 +6,7 @@ export async function PUT(req, { params }) {
         const result = await upsertVisualization(params.connectionId, viz);
         return Response.json({ ok: true, visualization: result });
     } catch (err) {
-        console.error("[PUT /api/config/visualizations/[connectionId]] ERROR:", err.message);
+        console.error("[PUT /api/config/visualization/[connectionId]] ERROR:", err.message);
         return Response.json({ error: err.message }, { status: 500 });
     }
 }
@@ -17,7 +17,7 @@ export async function DELETE(req, { params }) {
         await deleteVisualization(params.connectionId, vizId);
         return Response.json({ ok: true });
     } catch (err) {
-        console.error("[DELETE /api/config/visualizations/[connectionId]] ERROR:", err.message);
+        console.error("[DELETE /api/config/visualization/[connectionId]] ERROR:", err.message);
         return Response.json({ error: err.message }, { status: 500 });
     }
 }

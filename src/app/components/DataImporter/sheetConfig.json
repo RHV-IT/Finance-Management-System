@@ -166,20 +166,22 @@
       "dept": "Store",
       "module": "stock_out",
       "label": "SIV Issues",
-      "sheetId": "",
+      "sheetId": "1lewCDVKM2cdY38UsK1D5diMj0ictMOwykc1Fehgzvv0",
       "tabName": "SIV Issues",
-      "range": "A:H",
-      "headerRow": 1,
+      "range": "A:J",
+      "headerRow": 9,
       "periodSource": "dateColumn",
       "columnMap": {
-        "date": "Date",
-        "name": "Item Description",
-        "qtyRequested": "Qty Requested",
-        "unitCost": "Unit Cost",
-        "qty": "Qty Issued",
-        "total": "Total",
-        "dept": "Department",
-        "recipient": "Recipient"
+        "date_issued": "DATE ISSUED",
+        "item_description": "ITEM DESCRIPTION",
+        "code": "CODE",
+        "quantity_requested": "QUANTITY REQUESTED",
+        "quantity_issued": "QUANTITY ISSUED",
+        "unit_price": "UNIT PRICE (N)",
+        "total": "TOTAL (N)",
+        "account_head": "ACCOUNT HEAD",
+        "department": "DEPARTMENT",
+        "name_of_recipient": "NAME OF RECIPIENT"
       },
       "visualizations": [
         {
@@ -213,14 +215,15 @@
           "type": "table",
           "title": "SIV Issues",
           "columns": [
-            "date",
-            "name",
-            "qtyRequested",
-            "unitCost",
-            "qty",
+            "date_issued",
+            "item_description",
+            "quantity_requested",
+            "unit_price",
+            "quantity_issued",
             "total",
-            "dept",
-            "recipient"
+            "account_head",
+            "department",
+            "name_of_recipient"
           ]
         }
       ],

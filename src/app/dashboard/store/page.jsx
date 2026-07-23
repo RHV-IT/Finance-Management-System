@@ -23,6 +23,7 @@ const TABS = [
   { key:'reorder',   label:'🔔 Reorder Alerts' },
   { key:'movement',  label:'↔ Stock Movement'  },
   { key:'valuation', label:'💰 Valuation'      },
+  { key:'medical-consumables', label:'⚕ Medical Consumables' },
 ];
 
 // ─── Error state ──────────────────────────────────────────────
@@ -37,7 +38,7 @@ function SheetError({ error, onRefetch }) {
       </div>
       <div style={{ fontSize:11, color:'var(--muted)', marginBottom:14 }}>{error}</div>
       {(notConnected || noKey) && (
-        <a href="/settings" style={{ padding:'8px 18px', background:'var(--navy)', color:'#fff', borderRadius:8, fontSize:11, fontWeight:600, textDecoration:'none' }}>⚙ Go to Settings</a>
+        <a href="/dashboard/settings" style={{ padding:'8px 18px', background:'var(--navy)', color:'#fff', borderRadius:8, fontSize:11, fontWeight:600, textDecoration:'none' }}>⚙ Go to Settings</a>
       )}
       {onRefetch && !notConnected && !noKey && (
         <button onClick={onRefetch} style={{ padding:'8px 18px', background:'var(--teal)', color:'#fff', border:'none', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer' }}>↻ Retry</button>
@@ -87,6 +88,8 @@ export default function InventoryPage() {
   const reorderConn = getByModule('reorder_alerts');
   const movConn     = getByModule('stock_movement');
   const valConn     = getByModule('inventory_valuation');
+  const medicalConn = getByModule('medical_consumables');
+
 
   // 3. Fetch each sheet's actual data
   const stock   = useSheetData(stockConn);
@@ -95,11 +98,12 @@ export default function InventoryPage() {
   const reorder = useSheetData(reorderConn);
   const mov     = useSheetData(movConn);
   const val     = useSheetData(valConn);
+  const medicalConsumables = useSheetData(medicalConn);
 
   const srvBarViz = srvConn?.visualizations?.find(v => v.id === 'viz-srv-002');
 
-  const anyConnected = [stock,srv,siv].some(s => s.rows.length > 0);
-  const anyLoading   = configLoading || [stock,srv,siv,reorder,mov,val].some(s => s.loading);
+  const anyConnected = [stock,srv,siv,medicalConsumables].some(s => s.rows.length > 0);
+  const anyLoading   = configLoading || [stock,srv,siv,reorder,mov,val,medicalConsumables].some(s => s.loading);
 
   // ── KPIs ──────────────────────────────────────────────────
   const totalValue   = stock.rows.reduce((s,r) => s+n(r.totalValue), 0);
@@ -161,7 +165,7 @@ export default function InventoryPage() {
           <p className={styles.pageMeta}>Store department · Stock register, receipts, issues & valuation</p>
         </div>
         <button
-          onClick={() => { stock.refetch(); srv.refetch(); siv.refetch(); reorder.refetch(); mov.refetch(); val.refetch(); }}
+          onClick={() => { stock.refetch(); srv.refetch(); siv.refetch(); reorder.refetch(); mov.refetch(); val.refetch(); medicalConsumables.refetch(); }}
           disabled={anyLoading}
           style={{ padding:'7px 16px', background:'var(--teal)', color:'#fff', border:'none', borderRadius:8, fontSize:11, fontWeight:600, cursor:anyLoading?'wait':'pointer' }}
         >{anyLoading ? '⏳ Loading…' : '↻ Refresh All'}</button>
@@ -218,7 +222,7 @@ export default function InventoryPage() {
                       <XAxis type="number" tick={{fontSize:10,fill:'#7F8C9A'}} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" tick={{fontSize:9,fill:'#7F8C9A'}} axisLine={false} tickLine={false} width={110} />
                       <Tooltip contentStyle={tip} />
-                      <Bar dataKey="qty" radius={[0,3,3,0]}>
+                      <Bar dataKey="qtyIssued" radius={[0,3,3,0]}>
                         {top10Issued.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                       </Bar>
                     </BarChart>
@@ -327,7 +331,7 @@ export default function InventoryPage() {
       )}
 
       {/* ══ SRV ═══════════════════════════════════════════════ */}
-      {tab==='srv' && (
+      {/*tab==='srv' && (
         srv.error ? <SheetError error={srv.error} onRefetch={srv.refetch} />
         : srv.loading ? <Loading rows={6} cols={5} />
         : <div className={tableStyles.tableBox}>
@@ -352,7 +356,7 @@ export default function InventoryPage() {
               <tfoot><tr><td colSpan={8} style={{fontWeight:700}}>TOTAL</td><td style={{fontWeight:700}}>{fmt(totalRecvd)}</td></tr></tfoot>
             </table>
           </div>
-      )}
+      )*/}
 
       {tab==='srv' && (
         srv.error ? <SheetError error={srv.error} onRefetch={srv.refetch} />
@@ -362,32 +366,42 @@ export default function InventoryPage() {
           </div>
       )}
 
-      {/* ══ SIV ═══════════════════════════════════════════════ */}
       {tab==='siv' && (
+        siv.error ? <SheetError error={siv.error} onRefetch={siv.refetch} />
+        : siv.loading ? <Loading rows={6} cols={5} />
+        : <div className={tableStyles.tableBox}>
+            <DynamicVizList connection={sivConn} rows={siv.rows} />
+          </div>
+      )}
+
+      {/* ══ SIV ═══════════════════════════════════════════════ */}
+      {/*tab==='siv' && (
         siv.error ? <SheetError error={siv.error} onRefetch={siv.refetch} />
         : siv.loading ? <Loading rows={6} cols={5} />
         : <div className={tableStyles.tableBox}>
             <div className={tableStyles.tableTitle}>SIV Issues — {fmt(totalIssued)} total</div>
             <table className={tableStyles.table}>
-              <thead><tr><th>Date</th><th>Item Description</th><th>Qty Requested</th><th>Unit Cost</th><th>Qty Issued</th><th>Total</th><th>Department</th><th>Recipient</th></tr></thead>
+              <thead><tr><th>Date Issued</th><th>Item Description</th><th>Code</th><th>Qty Requested</th><th>Qty Issued</th><th>Unit Price</th><th>Total</th><th>Account Head</th><th>Department</th><th>Recipient</th></tr></thead>
               <tbody>
                 {siv.rows.map((r,i) => (
                   <tr key={i}>
-                    <td>{r.date||'—'}</td>
-                    <td style={{fontWeight:600}}>{r.name||'—'}</td>
-                    <td>{n(r.qtyRequested).toLocaleString()}</td>
-                    <td>{fmt(n(r.unitCost))}</td>
-                    <td style={{fontWeight:700}}>{n(r.qty).toLocaleString()}</td>
-                    <td style={{fontWeight:700}}>{fmt(n(r.total))}</td>
-                    <td><span className={`${tableStyles.badge} ${tableStyles.blue}`}>{r.dept||'—'}</span></td>
-                    <td style={{fontSize:10,color:'var(--muted)'}}>{r.recipient||'—'}</td>
+                    <td>{r.date_issued||'—'}</td>
+                    <td style={{fontWeight:600}}>{r.item_description||'—'}</td>
+                    <td>{r.code||'—'}</td>
+                    <td>{n(r.quantity_requested).toLocaleString()}</td>
+                    <td>{n(r.quantity_issued).toLocaleString()}</td>
+                    <td>{fmt(n(r.unit_price))}</td>
+                    <td style={{fontWeight:700}}>{n(r.total).toLocaleString()}</td>
+                    <td style={{fontWeight:700}}>{(r.account_head)}</td>
+                    <td><span className={`${tableStyles.badge} ${tableStyles.blue}`}>{r.department||'—'}</span></td>
+                    <td style={{fontSize:10,color:'var(--muted)'}}>{r.name_of_recipient||'—'}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot><tr><td colSpan={5} style={{fontWeight:700}}>TOTAL</td><td style={{fontWeight:700}}>{fmt(totalIssued)}</td><td colSpan={2}></td></tr></tfoot>
+              <tfoot><tr><td colSpan={7} style={{fontWeight:700}}>TOTAL</td><td style={{fontWeight:700}}>{fmt(totalIssued)}</td><td colSpan={2}></td></tr></tfoot>
             </table>
           </div>
-      )}
+      )*/}
 
       {/* ══ REORDER ═══════════════════════════════════════════ */}
       {tab==='reorder' && (
@@ -532,6 +546,14 @@ export default function InventoryPage() {
               </div>
             </div>
           </>
+      )}
+
+      {tab==='medical-consumables' && (
+        medicalConsumables.error ? <SheetError error={medicalConsumables.error} onRefetch={medicalConsumables.refetch} />
+        : medicalConsumables.loading ? <Loading rows={6} cols={5} />
+        : <div className={tableStyles.tableBox}>
+            <DynamicVizList connection={medicalConn} rows={medicalConsumables.rows} />
+          </div>
       )}
     </DashboardLayout>
   );

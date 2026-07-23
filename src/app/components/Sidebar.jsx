@@ -24,7 +24,8 @@ const NAV = [
   { href:'/dashboard/finstmt',       icon:'📑', label:'Financial Statements',badge: null },
  
   { section: 'Operations' },
-  { href:'/dashboard/hr',         icon:'', label:'HR', badge: null },
+  { href:'/dashboard/it',            icon:'👥', label:'IT', badge: null },
+  { href:'/dashboard/hr',            icon:'💻', label:'HR', badge: null },
   { href:'/dashboard/store',         icon:'📦', label:'Store / Inventory', badge: null },
   { href:'/dashboard/supplychain',   icon:'🛒', label:'Supply Chain',      badge: null },
   { href:'/dashboard/grn',           icon:'📥', label:'Goods Received',    badge: null },

@@ -1,4 +1,4 @@
-import { getConnectionById, updateConnection, deleteConnection } from "../../../../lib/GoogleDrive/config";
+import { getConnectionById, updateConnection, deleteConnection } from "../../../../dashboard/lib/GoogleDrive/config";
  
 export async function GET(req, { params }) {
     try {
