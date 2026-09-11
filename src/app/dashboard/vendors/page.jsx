@@ -189,7 +189,7 @@ export default function VendorsPage() {
   ];
  
   return (
-    <DashboardLayout>
+    <div>
       {/* ── Modals ──────────────────────────────────────────────────── */}
       {showVendorModal && (
         <Modal title="🚚 Add Vendor" onClose={()=>setShowVendorModal(false)} onSave={saveVendor}>
@@ -614,6 +614,6 @@ export default function VendorsPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

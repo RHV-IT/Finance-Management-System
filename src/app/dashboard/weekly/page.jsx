@@ -3,20 +3,20 @@
 import { useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
-import { useDataWithMeta, usePeriodFilter, PeriodFilterBar } from '../lib/useData';
-import { RevenueVsTargetChart, ExpenseRatioChart } from '../../components/Charts';
+import PageRenderer from '../../components/PageRenderer';
+import { useSheetData } from '../lib/useConfig';
+import { useConfig } from '../lib/ConfigProvider';
+import { ExpenseRatioChart } from '../../components/Charts';
 import {
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
 } from 'recharts';
-import {
-  MONTHS, REVENUE_2025, EXPENSES_2025, REVENUE_2024,
-  MONTHLY_TARGET, DEMO_REVENUE_MONTHLY, fmt, fmtM,
-} from '../lib/data';
+import { MONTHS, REVENUE_2024, MONTHLY_TARGET, fmt, fmtM } from '../lib/data';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
  
 const tip = { background:'#fff', border:'1px solid #E0E4EA', borderRadius:8, fontSize:11 };
+const n   = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
  
 const TABS = [
   { key:'monthly',   label:'Monthly'      },
@@ -28,33 +28,110 @@ const TABS = [
 const WEEK_SPLITS = [0.19, 0.22, 0.25, 0.28, 0.06];
 const WEEK_RANGES = ['1–7', '8–14', '15–21', '22–28', '29–31'];
  
+// ─── Descriptive error / loading states ────────────────────────
+// Mirrors the SheetError pattern already used on the Inventory page,
+// so error messaging is consistent across the app.
+ 
+function SheetError({ label, error, onRefetch }) {
+  const notConnected = error?.includes('not connected') || error?.includes('Sheet ID') || error?.includes('No connection');
+  return (
+    <div style={{ background: notConnected ? '#FFF9E6' : '#FEECEC', border: `1.5px solid ${notConnected ? '#F4D03F' : '#F1948A'}`, borderRadius: 10, padding: '24px', textAlign: 'center' }}>
+      <div style={{ fontSize: 28, marginBottom: 10 }}>{notConnected ? '🔗' : '⚠️'}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy)', marginBottom: 8 }}>
+        {label}: {notConnected ? 'Not connected yet' : 'Failed to load'}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>{error}</div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <a href="/dashboard/settings" style={{ padding: '8px 18px', background: 'var(--navy)', color: '#fff', borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>⚙ Go to Settings</a>
+        {onRefetch && !notConnected && (
+          <button onClick={onRefetch} style={{ padding: '8px 18px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>↻ Retry</button>
+        )}
+      </div>
+    </div>
+  );
+}
+ 
+function Loading({ message }) {
+  return (
+    <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 12 }}>
+      ⏳ {message}
+    </div>
+  );
+}
+ 
 export default function WeeklyPage() {
-  const [tab,      setTab]      = useState('monthly');
-  const [selWeek,  setSelWeek]  = useState(0);
+  const [tab,     setTab]     = useState('monthly');
+  const [selWeek, setSelWeek] = useState(0);
  
-  const { month, setMonth, monthOptions, availableMonths } =
-    usePeriodFilter('2025-11', 'revenue_monthly');
+  const { getByModule, loading: configLoading, error: configError, reload } = useConfig();
+  const revenueConn = getByModule('revenue_monthly');
+  const { rows, loading: rowsLoading, error: rowsError, refetch } = useSheetData(revenueConn);
  
-  const { data: rows, isReal } = useDataWithMeta('revenue_monthly', DEMO_REVENUE_MONTHLY);
+  // ── Guard states, in order of what could actually go wrong ──
  
-  // Build monthly array from uploaded or demo
-  const monthly = rows.length > 0
-    ? rows.map(r => ({
-        month:    (r.month || '').slice(0, 3),
-        revenue:  parseFloat(r.revenue)  || 0,
-        expenses: parseFloat(r.expenses) || 0,
-        target:   parseFloat(r.target)   || MONTHLY_TARGET,
-      }))
-    : MONTHS.map((m, i) => ({
-        month:    m,
-        revenue:  REVENUE_2025[i],
-        expenses: EXPENSES_2025[i],
-        target:   MONTHLY_TARGET,
-      }));
+  if (configLoading) {
+    return <div><Loading message="Loading sheet configuration from Google Drive…" /></div>;
+  }
+ 
+  if (configError) {
+    return (
+      <div>
+        <SheetError
+          label="Sheet configuration"
+          error={`Could not load the connections manifest: ${configError}`}
+          onRefetch={reload}
+        />
+      </div>
+    );
+  }
+ 
+  if (!revenueConn) {
+    return (
+      <div>
+        <SheetError
+          label="Monthly Revenue & Expenses"
+          error={`No connection with module "revenue_monthly" is configured. Add one in Settings, and make sure its feeds[] (or a visualization's pages[]) includes "weekly".`}
+        />
+      </div>
+    );
+  }
+ 
+  if (rowsLoading) {
+    return <div><Loading message={`Loading "${revenueConn.label}" from Google Sheets…`} /></div>;
+  }
+ 
+  if (rowsError) {
+    return (
+      <div>
+        <SheetError label={revenueConn.label} error={rowsError} onRefetch={refetch} />
+      </div>
+    );
+  }
+ 
+  if (!rows || rows.length === 0) {
+    return (
+      <div>
+        <SheetError
+          label={revenueConn.label}
+          error={`The sheet connected fine, but the "${revenueConn.tabName}" tab returned 0 rows. Check that data actually starts at header row ${revenueConn.headerRow} and that the range "${revenueConn.range}" covers it.`}
+          onRefetch={refetch}
+        />
+      </div>
+    );
+  }
+ 
+  // ── Real data from here on — no demo fallback ──
+ 
+  const monthly = rows.map(r => ({
+    month:    (r.month || '').slice(0, 3),
+    revenue:  n(r.revenue),
+    expenses: n(r.expenses),
+    target:   n(r.target) || MONTHLY_TARGET,
+  }));
  
   const tRev = monthly.reduce((s, r) => s + r.revenue,  0);
   const tExp = monthly.reduce((s, r) => s + r.expenses, 0);
-  const n    = monthly.length || 1;
+  const nMonths = monthly.length || 1;
  
   const monthlyChartData = monthly.map(r => ({
     month:    r.month,
@@ -74,17 +151,16 @@ export default function WeeklyPage() {
     return { quarter: q, revenue: fmtM(r), expenses: fmtM(e), surplus: fmtM(r - e) };
   });
  
-  // YoY — uploaded vs REVENUE_2024 demo
+  // YoY — real 2025 rows vs a hardcoded 2024 baseline (not yet a real connection)
   const yoyData = MONTHS.map((m, i) => ({
     month:  m,
     y2024:  fmtM(REVENUE_2024[i] || 0),
     y2025:  fmtM(monthly[i]?.revenue || 0),
   }));
  
-  // Selected month for weekly drill-down
-  const selMonthIdx  = monthOptions.findIndex(m => m.value === month);
-  const selMonthData = monthly[monthly.length - 1] || monthly[0] || { revenue: 0 };
-  const moRev        = selMonthData.revenue;
+  // Most recent month on record — used for the synthetic weekly split
+  const selMonthData = monthly[monthly.length - 1] || { month: '—', revenue: 0 };
+  const moRev = selMonthData.revenue;
  
   const weekData = WEEK_SPLITS.map((p, i) => ({
     week:   `W${i + 1}`,
@@ -93,7 +169,7 @@ export default function WeeklyPage() {
   }));
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>📅 Periodic Reports</h2>
@@ -101,17 +177,11 @@ export default function WeeklyPage() {
         </div>
       </div>
  
-      <PeriodFilterBar
-        month={month} setMonth={setMonth}
-        monthOptions={monthOptions} availableMonths={availableMonths}
-        showMonth={true} showDept={false} isRealData={isReal}
-      />
- 
       <div className={styles.kpiGrid}>
         <KPICard label="YTD Revenue"   value={fmt(tRev)} color="green" deltaType="up" />
         <KPICard label="YTD Expenses"  value={fmt(tExp)} color="red"   deltaType="warn" />
         <KPICard label="YTD Surplus"   value={fmt(tRev - tExp)} delta={tRev - tExp > 0 ? 'Positive' : 'Deficit'} deltaType={tRev - tExp > 0 ? 'up' : 'down'} color={tRev - tExp > 0 ? 'green' : 'red'} />
-        <KPICard label="Months of Data" value={n} color="blue" />
+        <KPICard label="Months of Data" value={nMonths} color="blue" />
       </div>
  
       {/* Tab switcher */}
@@ -127,65 +197,33 @@ export default function WeeklyPage() {
         ))}
       </div>
  
-      {/* ── Monthly ─── */}
+      {/* ── Monthly — config-driven via PageRenderer ─── */}
       {tab === 'monthly' && (
         <>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Monthly Revenue vs Target</div>
-              <RevenueVsTargetChart data={monthlyChartData} />
-            </div>
+            {/* Revenue vs Target — reads viz-rev-003 from the revenue_monthly connection */}
+            <PageRenderer page="weekly" module="revenue_monthly" only={['bar']} />
+ 
+            {/* Expense/Revenue ratio is a derived metric — no viz type supports computed
+                fields yet, so this stays a bespoke chart fed by the same raw rows. */}
             <div className={styles.card}>
               <div className={styles.cardTitle}>Expense / Revenue Ratio</div>
               <ExpenseRatioChart data={monthlyChartData} />
             </div>
           </div>
-          <div className={tableStyles.tableBox}>
-            <div className={tableStyles.tableTitle}>Monthly Summary</div>
-            <table className={tableStyles.table}>
-              <thead><tr><th>Month</th><th>Revenue</th><th>Expenses</th><th>Surplus</th><th>Exp Ratio</th><th>Status</th></tr></thead>
-              <tbody>
-                {monthly.map((r, i) => {
-                  const net   = r.revenue - r.expenses;
-                  const ratio = r.revenue > 0 ? (r.expenses / r.revenue * 100).toFixed(1) : null;
-                  return (
-                    <tr key={i}>
-                      <td style={{ fontWeight:600 }}>{r.month}</td>
-                      <td style={{ color:'var(--teal)', fontWeight:600 }}>{fmt(r.revenue)}</td>
-                      <td style={{ color:'var(--red)' }}>{fmt(r.expenses)}</td>
-                      <td style={{ fontWeight:700, color:net>=0?'var(--teal)':'var(--red)' }}>
-                        {net >= 0 ? '+' : ''}{fmt(net)}
-                      </td>
-                      <td style={{ color: ratio && +ratio > 60 ? 'var(--red)' : 'var(--teal)' }}>
-                        {ratio ? `${ratio}%` : '—'}
-                      </td>
-                      <td>
-                        <span className={`${tableStyles.badge} ${net >= 0 ? tableStyles.green : tableStyles.red}`}>
-                          {net >= 0 ? 'Surplus' : 'Deficit'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td>TOTAL</td>
-                  <td style={{ color:'var(--teal)' }}>{fmt(tRev)}</td>
-                  <td style={{ color:'var(--red)' }}>{fmt(tExp)}</td>
-                  <td style={{ fontWeight:700 }}>{fmt(tRev - tExp)}</td>
-                  <td>{tRev > 0 ? `${(tExp/tRev*100).toFixed(1)}%` : '—'}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+ 
+          {/* Monthly summary table — reads viz-rev-004 */}
+          <PageRenderer page="weekly" module="revenue_monthly" only={['table']} />
         </>
       )}
  
-      {/* ── Weekly ─── */}
+      {/* ── Weekly — synthetic split, no real per-week data source yet ─── */}
       {tab === 'weekly' && (
         <>
+          <div style={{ fontSize:10.5, color:'var(--muted)', marginBottom:10 }}>
+            Estimated split of <strong>{selMonthData.month}</strong>'s revenue using fixed weekly
+            percentages — there's no real per-week sheet connected yet, so this is not live data.
+          </div>
           <div style={{ display:'flex', gap:10, marginBottom:14, flexWrap:'wrap' }}>
             {WEEK_SPLITS.map((p, i) => (
               <div key={i} onClick={() => setSelWeek(i)} style={{
@@ -202,7 +240,7 @@ export default function WeeklyPage() {
             ))}
           </div>
           <div className={styles.card}>
-            <div className={styles.cardTitle}>Weekly Revenue Distribution</div>
+            <div className={styles.cardTitle}>Weekly Revenue Distribution (estimated)</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={weekData} margin={{ top:4, right:8, left:0, bottom:0 }}>
                 <CartesianGrid vertical={false} stroke="rgba(0,0,0,.05)" />
@@ -220,7 +258,7 @@ export default function WeeklyPage() {
         </>
       )}
  
-      {/* ── Quarterly ─── */}
+      {/* ── Quarterly — grouped from real monthly rows, no config viz for this yet ─── */}
       {tab === 'quarterly' && (
         <>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
@@ -267,55 +305,61 @@ export default function WeeklyPage() {
         </>
       )}
  
-      {/* ── Year-on-Year ─── */}
+      {/* ── Year-on-Year — 2025 is real, 2024 is still a placeholder baseline ─── */}
       {tab === 'yearly' && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          <div className={styles.card}>
-            <div className={styles.cardTitle}>Year-on-Year Monthly Revenue</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={yoyData} margin={{ top:4, right:8, left:0, bottom:0 }} barCategoryGap="25%">
-                <CartesianGrid vertical={false} stroke="rgba(0,0,0,.05)" />
-                <XAxis dataKey="month" tick={{ fontSize:9, fill:'#7F8C9A' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize:10, fill:'#7F8C9A' }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} width={44} />
-                <Tooltip contentStyle={tip} formatter={v=>`₦${v}M`} />
-                <Legend iconSize={8} wrapperStyle={{ fontSize:10 }} />
-                <Bar dataKey="y2024" name="2024" fill="#1B4F7288" radius={[2,2,0,0]} />
-                <Bar dataKey="y2025" name="2025" fill="#117A65"   radius={[2,2,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div>
+          <div style={{ fontSize:10.5, color:'var(--muted)', marginBottom:10 }}>
+            2025 figures come from your connected sheet. The 2024 baseline is placeholder data —
+            connect a real prior-year sheet to replace it with an actual year-on-year comparison.
           </div>
-          <div className={tableStyles.tableBox} style={{ margin:0 }}>
-            <div className={tableStyles.tableTitle}>YoY Summary</div>
-            <table className={tableStyles.table}>
-              <thead><tr><th>Metric</th><th>2024</th><th>2025</th><th>Growth</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td style={{ fontWeight:600 }}>Total Revenue</td>
-                  <td style={{ color:'var(--muted)' }}>₦{(REVENUE_2024.reduce((a,b)=>a+b,0)/1e6).toFixed(0)}M</td>
-                  <td style={{ fontWeight:700 }}>{fmt(tRev)}</td>
-                  <td style={{ color:'var(--teal)', fontWeight:700 }}>
-                    {REVENUE_2024.reduce((a,b)=>a+b,0) > 0
-                      ? `+${((tRev - REVENUE_2024.reduce((a,b)=>a+b,0)) / REVENUE_2024.reduce((a,b)=>a+b,0) * 100).toFixed(0)}%`
-                      : 'N/A'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight:600 }}>Avg Monthly</td>
-                  <td style={{ color:'var(--muted)' }}>{fmt(REVENUE_2024.reduce((a,b)=>a+b,0)/12)}</td>
-                  <td style={{ fontWeight:700 }}>{fmt(tRev / n)}</td>
-                  <td style={{ color:'var(--teal)' }}>Growth</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight:600 }}>Months of Data</td>
-                  <td style={{ color:'var(--muted)' }}>12</td>
-                  <td style={{ fontWeight:700 }}>{n}</td>
-                  <td>—</td>
-                </tr>
-              </tbody>
-            </table>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>Year-on-Year Monthly Revenue</div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={yoyData} margin={{ top:4, right:8, left:0, bottom:0 }} barCategoryGap="25%">
+                  <CartesianGrid vertical={false} stroke="rgba(0,0,0,.05)" />
+                  <XAxis dataKey="month" tick={{ fontSize:9, fill:'#7F8C9A' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize:10, fill:'#7F8C9A' }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} width={44} />
+                  <Tooltip contentStyle={tip} formatter={v=>`₦${v}M`} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize:10 }} />
+                  <Bar dataKey="y2024" name="2024 (placeholder)" fill="#1B4F7288" radius={[2,2,0,0]} />
+                  <Bar dataKey="y2025" name="2025" fill="#117A65"   radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className={tableStyles.tableBox} style={{ margin:0 }}>
+              <div className={tableStyles.tableTitle}>YoY Summary</div>
+              <table className={tableStyles.table}>
+                <thead><tr><th>Metric</th><th>2024</th><th>2025</th><th>Growth</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td style={{ fontWeight:600 }}>Total Revenue</td>
+                    <td style={{ color:'var(--muted)' }}>₦{(REVENUE_2024.reduce((a,b)=>a+b,0)/1e6).toFixed(0)}M</td>
+                    <td style={{ fontWeight:700 }}>{fmt(tRev)}</td>
+                    <td style={{ color:'var(--teal)', fontWeight:700 }}>
+                      {REVENUE_2024.reduce((a,b)=>a+b,0) > 0
+                        ? `+${((tRev - REVENUE_2024.reduce((a,b)=>a+b,0)) / REVENUE_2024.reduce((a,b)=>a+b,0) * 100).toFixed(0)}%`
+                        : 'N/A'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ fontWeight:600 }}>Avg Monthly</td>
+                    <td style={{ color:'var(--muted)' }}>{fmt(REVENUE_2024.reduce((a,b)=>a+b,0)/12)}</td>
+                    <td style={{ fontWeight:700 }}>{fmt(tRev / nMonths)}</td>
+                    <td style={{ color:'var(--teal)' }}>Growth</td>
+                  </tr>
+                  <tr>
+                    <td style={{ fontWeight:600 }}>Months of Data</td>
+                    <td style={{ color:'var(--muted)' }}>12</td>
+                    <td style={{ fontWeight:700 }}>{nMonths}</td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

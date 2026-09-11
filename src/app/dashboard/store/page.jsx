@@ -6,7 +6,8 @@ import KPICard from '../../components/KPICard';
 import { RevenuePieChart } from '../../components/Charts';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { fmt, COLORS } from '../lib/data';
-import { useConfig, useSheetData } from '../lib/useConfig';
+import { useSheetData } from '../lib/useConfig';
+import { useConfig } from '../lib/ConfigProvider';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
 
@@ -141,24 +142,24 @@ export default function InventoryPage() {
 
   // ── Config loading / error ────────────────────────────────
   if (configLoading) return (
-    <DashboardLayout>
+    <div>
       <div style={{ textAlign:'center', padding:64 }}>
         <div style={{ fontSize:28, marginBottom:10 }}>⏳</div>
         <div style={{ fontSize:13, fontWeight:600, color:'var(--navy)' }}>Loading sheet configuration from Google Drive…</div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 
   if (configError) return (
-    <DashboardLayout>
+    <div>
       <div style={{ padding:24 }}>
         <SheetError error={`Failed to load config: ${configError}`} onRefetch={reload} />
       </div>
-    </DashboardLayout>
+    </div>
   );
 
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>📦 Inventory Management</h2>
@@ -183,7 +184,7 @@ export default function InventoryPage() {
           {anyLoading ? 'Loading from Google Sheets…' : anyConnected ? '✓ Live from Google Sheets' : 'Sheets not connected — go to Settings to add sheet IDs'}
         </span>
         {!anyConnected && (
-          <a href="/settings" style={{ marginLeft:'auto', fontSize:10, fontWeight:600, color:'var(--navy)', textDecoration:'none' }}>⚙ Settings →</a>
+          <a href="/dashboard/settings" style={{ marginLeft:'auto', fontSize:10, fontWeight:600, color:'var(--navy)', textDecoration:'none' }}>⚙ Settings →</a>
         )}
       </div>
 
@@ -555,6 +556,6 @@ export default function InventoryPage() {
             <DynamicVizList connection={medicalConn} rows={medicalConsumables.rows} />
           </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

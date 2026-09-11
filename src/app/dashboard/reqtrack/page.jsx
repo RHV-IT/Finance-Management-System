@@ -219,7 +219,7 @@ export default function ReqTrackPage() {
   const queried    = REQS.filter(r => r.status === 'Queried').length;
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>🔎 Request Tracking</h2>
@@ -416,6 +416,6 @@ export default function ReqTrackPage() {
           );
         })}
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

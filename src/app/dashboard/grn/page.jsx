@@ -39,7 +39,7 @@ export default function GRNPage() {
   const damaged = enriched.filter(g => g.condition && g.condition !== 'Good').length;
 
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>📥 Goods Received Notes</h2>
@@ -104,6 +104,6 @@ export default function GRNPage() {
           </table>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

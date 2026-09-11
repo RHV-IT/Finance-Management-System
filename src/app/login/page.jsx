@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../styles/Login.module.css';
+import { warmConnectionsCache } from '../dashboard/lib/useConfig';
  
 const ROLES = [
   { id:'admin',       icon:'👑', name:'Management / Admin',   desc:'Full access · All modules',          pin:'0000' },
@@ -44,6 +45,7 @@ export default function LoginPage() {
       sessionStorage.setItem('rhv_role', selectedRole.id);
       sessionStorage.setItem('rhv_role_label', selectedRole.name);
     }
+    warmConnectionsCache();
     router.push('/dashboard/overview');
   };
  

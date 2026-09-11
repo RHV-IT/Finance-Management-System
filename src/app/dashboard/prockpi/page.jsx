@@ -140,7 +140,7 @@ export default function ProcKPIPage() {
   }
  
   return (
-    <DashboardLayout>
+    <div>
  
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className={styles.pageHeader}>
@@ -661,6 +661,6 @@ export default function ProcKPIPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

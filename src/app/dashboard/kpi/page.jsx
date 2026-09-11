@@ -24,7 +24,7 @@ const ACTION_MAP = {
  
 export default function KPIPage() {
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>🎯 KPI Scorecard</h2>
@@ -103,6 +103,6 @@ export default function KPIPage() {
           </tbody>
         </table>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

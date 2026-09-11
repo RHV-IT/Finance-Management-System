@@ -700,7 +700,7 @@ export default function P2PPage() {
   ];
  
   return (
-    <DashboardLayout>
+    <div>
       {detailReq && (
         <DetailPanel
           req={detailReq}
@@ -965,6 +965,6 @@ export default function P2PPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

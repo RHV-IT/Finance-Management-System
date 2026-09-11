@@ -142,7 +142,7 @@ export default function VendorOutstandingPage() {
   };
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>📉 Vendor Outstanding</h2>
@@ -326,6 +326,6 @@ export default function VendorOutstandingPage() {
           </table>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

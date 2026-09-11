@@ -1,66 +1,24 @@
 'use client';
-
+ 
 import { useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { RevenuePieChart } from '../../components/Charts';
-import { fmt, MONTHS, COLORS } from '../lib/data';
+import PageRenderer from '../../components/PageRenderer';
+import { useSheetData } from '../lib/useConfig';
+import { useConfig } from '../lib/ConfigProvider';
+import { fmt } from '../lib/data';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
-
-import { useConfig, useSheetData } from '../lib/useConfig';
-import { DynamicViz, DynamicVizLine } from '../../components/DynamicViz';
-
-const tip = { background:'#fff', border:'1px solid #E0E4EA', borderRadius:8, fontSize:11 };
-
-const DISPENSING = [
-  { ref:'DSP-001', date:'2025-11-25', drug:'Amoxicillin 500mg',     qty:30,  unit:'Tablet', patient:'Ward 2 / Adeyemi J.',  prescriber:'Dr Okonkwo',   dtype:'Inpatient',  uc:80,   value:2400   },
-  { ref:'DSP-002', date:'2025-11-25', drug:'Metformin 500mg',        qty:60,  unit:'Tablet', patient:'OPD / Fashola M.',      prescriber:'Dr Aliyu',     dtype:'Outpatient', uc:120,  value:7200   },
-  { ref:'DSP-003', date:'2025-11-24', drug:'Amlodipine 5mg',         qty:30,  unit:'Tablet', patient:'Ward 1 / Bello T.',     prescriber:'Dr Balogun',   dtype:'Inpatient',  uc:350,  value:10500  },
-  { ref:'DSP-004', date:'2025-11-24', drug:'IV Normal Saline 500ml', qty:4,   unit:'Bottle', patient:'ICU / Eze K.',          prescriber:'Dr Okonkwo',   dtype:'ICU',        uc:1500, value:6000   },
-  { ref:'DSP-005', date:'2025-11-23', drug:'Hydrochlorothiazide',    qty:28,  unit:'Tablet', patient:'OPD / Nwankwo E.',      prescriber:'Dr Aliyu',     dtype:'Outpatient', uc:120,  value:3360   },
-  { ref:'DSP-006', date:'2025-11-23', drug:'Surgical Gloves M',      qty:10,  unit:'Box',    patient:'Theatre',               prescriber:'Dr Balogun',   dtype:'Theatre',    uc:850,  value:8500   },
-  { ref:'DSP-007', date:'2025-11-22', drug:'Blood Glucose Strips',   qty:50,  unit:'Strip',  patient:'Lab / Okafor A.',       prescriber:'Dr Nwachukwu', dtype:'Lab',        uc:2800, value:140000 },
-  { ref:'DSP-008', date:'2025-11-21', drug:'Amoxicillin 500mg',      qty:20,  unit:'Tablet', patient:'OPD / Ibrahim S.',      prescriber:'Dr Okonkwo',   dtype:'Outpatient', uc:80,   value:1600   },
-  { ref:'DSP-009', date:'2025-11-20', drug:'Amlodipine 5mg',         qty:28,  unit:'Tablet', patient:'Ward 3 / Chukwu P.',    prescriber:'Dr Balogun',   dtype:'Inpatient',  uc:350,  value:9800   },
-];
-
-const DRUG_STOCK = [
-  { item:'Amoxicillin 500mg',     cat:'Drugs',      qty:45,   unit:'Tablet', cost:80,   reorder:500, expiry:'2026-06-01' },
-  { item:'Metformin 500mg',       cat:'Drugs',      qty:6180, unit:'Tablet', cost:120,  reorder:500, expiry:'2026-12-01' },
-  { item:'Amlodipine 5mg',        cat:'Drugs',      qty:4790, unit:'Tablet', cost:350,  reorder:300, expiry:'2026-11-01' },
-  { item:'IV Normal Saline 500ml',cat:'Fluids',     qty:1780, unit:'Bottle', cost:1500, reorder:200, expiry:'2026-06-01' },
-  { item:'Hydrochlorothiazide',   cat:'Drugs',      qty:3780, unit:'Tablet', cost:120,  reorder:300, expiry:'2026-10-01' },
-  { item:'Blood Glucose Strips',  cat:'Lab',        qty:1150, unit:'Strip',  cost:2800, reorder:100, expiry:'2025-12-15' },
-  { item:'Cannula 18G',           cat:'Consumables',qty:2380, unit:'Pcs',   cost:800,  reorder:50,  expiry:'2026-08-01' },
-  { item:'CT Contrast Media',     cat:'X-Ray',      qty:12,   unit:'Vial',   cost:12000,reorder:15,  expiry:'2026-03-01' },
-];
-
-const MY_REQS = [
-  { date:'2025-11-20', title:'Emergency Antibiotic Restock',  amount:450000, priority:'High',   status:'APPROVED'  },
-  { date:'2025-11-15', title:'IV Fluid Monthly Order',        amount:900000, priority:'Normal', status:'PENDING'   },
-  { date:'2025-11-08', title:'Diabetic Medication — Nov',     amount:320000, priority:'Normal', status:'COMPLETED' },
-  { date:'2025-10-30', title:'Lab Reagents Restock',          amount:280000, priority:'High',   status:'COMPLETED' },
-];
-
-const MONTHLY_DISP = [2.1,3.4,2.8,4.1,5.2,4.8,5.6,7.3,6.9,6.2,6.8,0].map((v,i) => ({ month: MONTHS[i], value:v }));
-
-const catMap = {};
-DRUG_STOCK.forEach(d => { catMap[d.cat] = (catMap[d.cat]||0) + d.qty * d.cost; });
-const catPie = Object.entries(catMap).map(([name,val]) => ({ name, value:+(val/1e6).toFixed(2) }));
-
-const today   = DISPENSING.filter(d => d.date === '2025-11-25').length;
-const tVal    = DISPENSING.reduce((s,d) => s+d.value, 0);
-const low     = DRUG_STOCK.filter(d => d.qty <= d.reorder);
-const expiring= DRUG_STOCK.filter(d => { if(!d.expiry) return false; const days=(new Date(d.expiry)-new Date())/864e5; return days>0&&days<90; });
-
+ 
+const n = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
+ 
 const TABS = [
+  { key:'overview',  label:'Overview' },
   { key:'disp',  label:'💊 Dispensing / Usage' },
   { key:'stock', label:'📊 Drug Stock'         },
   { key:'req',   label:'📝 My Requests'        },
 ];
-
+ 
 function TabBtn({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
@@ -71,204 +29,227 @@ function TabBtn({ active, onClick, children }) {
     }}>{children}</button>
   );
 }
-
-export default function PharmacyPage() {
-  const { getByModule, loading: configLoading, error: configError } = useConfig();
-
-  const dispensingConn = getByModule('drug_dispensing');
-
-  const { rows, loading, error, refetch } = useSheetData(dispensingConn);
-
-  const [tab, setTab] = useState('disp');
-
-  if (configLoading) return (
-    <DashboardLayout>
-      <div style={{ textAlign:'center', padding:64 }}>
-        <div style={{ fontSize:28, marginBottom:10 }}>⏳</div>
-        <div style={{ fontSize:13, fontWeight:600, color:'var(--navy)' }}>Loading sheet configuration from Google Drive…</div>
-      </div>
-    </DashboardLayout>
-  );
-
-  if (configError) return (
-    <DashboardLayout>
-      <div style={{ padding:24 }}>
-        <SheetError error={`Failed to load config: ${configError}`} onRefetch={reload} />
-      </div>
-    </DashboardLayout>
-  );
-
-
+ 
+// ─── Descriptive error / loading states (same pattern as other revamped pages) ──
+ 
+function SheetError({ label, error, onRefetch }) {
+  const notConnected = error?.includes('not connected') || error?.includes('Sheet ID') || error?.includes('No connection');
   return (
-    <DashboardLayout>
+    <div style={{ background: notConnected ? '#FFF9E6' : '#FEECEC', border: `1.5px solid ${notConnected ? '#F4D03F' : '#F1948A'}`, borderRadius: 10, padding: '24px', textAlign: 'center' }}>
+      <div style={{ fontSize: 28, marginBottom: 10 }}>{notConnected ? '🔗' : '⚠️'}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy)', marginBottom: 8 }}>
+        {label}: {notConnected ? 'Not connected yet' : 'Failed to load'}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>{error}</div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <a href="/settings" style={{ padding: '8px 18px', background: 'var(--navy)', color: '#fff', borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>⚙ Go to Settings</a>
+        {onRefetch && !notConnected && (
+          <button onClick={onRefetch} style={{ padding: '8px 18px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>↻ Retry</button>
+        )}
+      </div>
+    </div>
+  );
+}
+ 
+function Loading({ message }) {
+  return <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 12 }}>⏳ {message}</div>;
+}
+ 
+// Shared guard — each tab is backed by an independent connection, so a
+// missing/broken Drug Stock sheet shouldn't block the Dispensing tab and
+// vice versa. Returns a rendered guard element, or null if the tab's data
+// is actually ready to render.
+function tabGuard(conn, moduleName, page, state) {
+  if (!conn) {
+    return (
+      <SheetError
+        label={moduleName}
+        error={`No connection with module "${moduleName}" is configured yet. Add one in Settings, and make sure its feeds[] (or a visualization's pages[]) includes "${page}".`}
+      />
+    );
+  }
+  if (state.loading) return <Loading message={`Loading "${conn.label}" from Google Sheets…`} />;
+  if (state.error) return <SheetError label={conn.label} error={state.error} onRefetch={state.refetch} />;
+  if (!state.rows || state.rows.length === 0) {
+    return (
+      <SheetError
+        label={conn.label}
+        error={`The sheet connected fine, but the "${conn.tabName}" tab returned 0 rows. Check that data starts at header row ${conn.headerRow} and that the range "${conn.range}" covers it.`}
+        onRefetch={state.refetch}
+      />
+    );
+  }
+  return null;
+}
+ 
+export default function PharmacyPage() {
+  const [tab, setTab] = useState('overview');
+ 
+  const { getByModule, loading: configLoading, error: configError, reload } = useConfig();
+ 
+  const dispensingConn = getByModule('drug_dispensing');
+  const drugStockConn  = getByModule('drug_stock');
+  const procReqConn    = getByModule('procurement_requests');
+ 
+  const disp  = useSheetData(dispensingConn);
+  const stock = useSheetData(drugStockConn);
+  const reqs  = useSheetData(procReqConn);
+ 
+  if (configLoading) return <div><Loading message="Loading sheet configuration from Google Drive…" /></div>;
+ 
+  if (configError) return (
+    <div>
+      <SheetError label="Sheet configuration" error={`Could not load the connections manifest: ${configError}`} onRefetch={reload} />
+    </div>
+  );
+ 
+  return (
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>💊 Pharmacy Management</h2>
           <p className={styles.pageMeta}>Drug dispensing · Stock monitoring · Procurement requests</p>
         </div>
       </div>
-
-      <div className={styles.kpiGrid}>
-        <KPICard label="Dispensed Today"    value={today}      delta="Prescriptions attended"   deltaType="up"   color="blue"   />
-        <KPICard label="Usage Value (YTD)"  value={fmt(tVal)}  delta="Total dispensed value"    deltaType="up"   color="green"  />
-        <KPICard label="Drug SKUs"          value={DRUG_STOCK.length} delta="In register"        deltaType="up"   color="purple" />
-        <KPICard label="Low Drug Stock"     value={low.length} delta="Below reorder level"
-          deltaType={low.length>0?'down':'up'} badge={low.length>0?'⚠ Reorder':'✓ OK'}
-          badgeType={low.length>0?'bad':'good'} color={low.length>0?'red':'green'} />
-        <KPICard label="Expiring ≤ 90 Days" value={expiring.length} delta="Needs review"
-          deltaType={expiring.length>0?'warn':'up'} color={expiring.length>0?'amber':'green'} />
-        <KPICard label="Pending Requests"   value={MY_REQS.filter(r=>r.status==='PENDING').length}
-          delta="Awaiting approval" deltaType="warn" color="amber" />
-      </div>
-
+ 
       <div style={{ display:'flex', borderBottom:'2px solid var(--border)', marginBottom:16, overflowX:'auto' }}>
         {TABS.map(t => <TabBtn key={t.key} active={tab===t.key} onClick={()=>setTab(t.key)}>{t.label}</TabBtn>)}
       </div>
 
-      {tab === 'disp' && (
-        <>
-          <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:14, marginBottom:14 }}>
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Monthly Dispensing Value Trend (₦M)</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={MONTHLY_DISP} margin={{ top:4, right:8, left:0, bottom:0 }}>
-                  <CartesianGrid vertical={false} stroke="rgba(0,0,0,.05)" />
-                  <XAxis dataKey="month" tick={{ fontSize:9, fill:'#7F8C9A' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize:10, fill:'#7F8C9A' }} axisLine={false} tickLine={false} tickFormatter={v=>`₦${v}M`} width={40} />
-                  <Tooltip contentStyle={tip} formatter={v=>`₦${v}M`} />
-                  <Bar dataKey="value" fill="#117A65" radius={[3,3,0,0]}>
-                    {MONTHLY_DISP.map((_,i) => <Cell key={i} fill={i===10?'#1B4F72':'#117A65aa'} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Dispensing by Type</div>
-              {['Inpatient','Outpatient','ICU','Theatre','Lab'].map((type,i) => {
-                const count = DISPENSING.filter(d=>d.dtype===type).length;
-                const pct   = DISPENSING.length > 0 ? (count/DISPENSING.length*100).toFixed(0) : 0;
-                return (
-                  <div key={type} style={{ marginBottom:8 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, marginBottom:2 }}>
-                      <span style={{ fontWeight:600 }}>{type}</span>
-                      <span>{count} ({pct}%)</span>
-                    </div>
-                    <div style={{ height:6, background:'#e8ecf0', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ height:'100%', borderRadius:3, background:COLORS[i], width:`${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className={tableStyles.tableBox}>
-            <div className={tableStyles.tableTitle}>Drug Dispensing Records</div>
-            <table className={tableStyles.table}>
-              <thead><tr><th>Ref</th><th>Date</th><th>Drug</th><th>Qty</th><th>Unit</th><th>Patient / Ward</th><th>Prescriber</th><th>Type</th><th>Value</th></tr></thead>
-              <tbody>
-                {DISPENSING.map(d => (
-                  <tr key={d.ref}>
-                    <td style={{ fontWeight:700, color:'var(--navy)' }}>{d.ref}</td>
-                    <td>{d.date}</td>
-                    <td style={{ fontWeight:600 }}>{d.drug}</td>
-                    <td>{d.qty}</td>
-                    <td style={{ color:'var(--muted)', fontSize:10 }}>{d.unit}</td>
-                    <td style={{ fontSize:11 }}>{d.patient}</td>
-                    <td style={{ fontSize:10, color:'var(--muted)' }}>{d.prescriber}</td>
-                    <td><span className={`${tableStyles.badge} ${tableStyles.blue}`}>{d.dtype}</span></td>
-                    <td style={{ fontWeight:700 }}>{fmt(d.value)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr><td colSpan={8} style={{ fontWeight:700 }}>TOTAL DISPENSING VALUE</td><td style={{ fontWeight:700 }}>{fmt(tVal)}</td></tr></tfoot>
-            </table>
-          </div>
-        </>
-      )}
-
-      {tab === 'stock' && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          <div className={tableStyles.tableBox} style={{ gridColumn:'1/-1', margin:0 }}>
-            <div className={tableStyles.tableTitle}>Drug & Consumable Stock Levels</div>
-            <table className={tableStyles.table}>
-              <thead><tr><th>Drug / Item</th><th>Category</th><th>In Stock</th><th>Unit</th><th>Unit Cost</th><th>Reorder Lvl</th><th>Expiry</th><th>Status</th></tr></thead>
-              <tbody>
-                {DRUG_STOCK.map(d => {
-                  const isLow  = d.qty <= d.reorder;
-                  const now    = new Date();
-                  const exp    = d.expiry ? new Date(d.expiry) : null;
-                  const outd   = exp && exp < now;
-                  const near   = exp && !outd && (exp - now)/864e5 < 90;
-                  const sBadge = isLow ? tableStyles.red : tableStyles.green;
-                  const sLabel = isLow ? '⚠ LOW' : '✓ OK';
-                  return (
-                    <tr key={d.item}>
-                      <td style={{ fontWeight:600 }}>{d.item}</td>
-                      <td><span className={`${tableStyles.badge} ${tableStyles.blue}`}>{d.cat}</span></td>
-                      <td style={{ fontWeight:700, color:isLow?'var(--red)':'var(--text)' }}>{d.qty.toLocaleString()}</td>
-                      <td style={{ color:'var(--muted)', fontSize:10 }}>{d.unit}</td>
-                      <td>{fmt(d.cost)}</td>
-                      <td>{d.reorder}</td>
-                      <td>{d.expiry ? <span className={`${tableStyles.badge} ${outd?tableStyles.red:near?tableStyles.amber:tableStyles.green}`}>{d.expiry}</span> : '—'}</td>
-                      <td><span className={`${tableStyles.badge} ${sBadge}`}>{sLabel}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className={styles.card}>
-            <div className={styles.cardTitle}>Stock Value by Category</div>
-            <RevenuePieChart data={catPie} colors={COLORS} />
-          </div>
-          <div className={styles.card}>
-            <div className={styles.cardTitle}>Alerts</div>
-            <div style={{ padding:'8px 0' }}>
-              {low.length > 0 ? low.map(d => (
-                <div key={d.item} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:11 }}>
-                  <span style={{ fontWeight:600, color:'var(--red)' }}>⚠ {d.item}</span>
-                  <span style={{ color:'var(--red)' }}>{d.qty} left (reorder at {d.reorder})</span>
-                </div>
-              )) : <div style={{ color:'var(--teal)', fontSize:11, padding:'8px 0' }}>✓ All drugs are above reorder levels</div>}
-              {expiring.map(d => (
-                <div key={d.item} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:11 }}>
-                  <span style={{ fontWeight:600, color:'var(--amber)' }}>⏰ {d.item}</span>
-                  <span style={{ color:'var(--amber)' }}>Expires {d.expiry}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Overview */}
+      {tab === 'overview' && (
+        <div style={{ marginBottom: 14 }}>
+          <PageRenderer page="pharmacy" />
         </div>
       )}
 
-      {tab === 'req' && (
-        <>
-          <div style={{ background:'#EBF5FB', borderRadius:8, padding:'12px 16px', marginBottom:14, fontSize:11 }}>
-            💡 To raise a new procurement request, use <strong>New Requisition</strong> in the sidebar. Approved requests are routed automatically to Procurement via the P2P workflow.
-          </div>
-          <div className={tableStyles.tableBox}>
-            <div className={tableStyles.tableTitle}>My Procurement Requests</div>
-            <table className={tableStyles.table}>
-              <thead><tr><th>Date</th><th>Title</th><th>Amount</th><th>Priority</th><th>Status</th></tr></thead>
-              <tbody>
-                {MY_REQS.map((r,i) => {
-                  const sColor = r.status==='APPROVED'?tableStyles.green:r.status==='REJECTED'?tableStyles.red:r.status==='COMPLETED'?tableStyles.blue:tableStyles.amber;
-                  const pColor = r.priority==='High'?tableStyles.red:tableStyles.amber;
-                  return (
-                    <tr key={i}>
-                      <td>{r.date}</td>
-                      <td style={{ fontWeight:600 }}>{r.title}</td>
-                      <td style={{ fontWeight:700 }}>{fmt(r.amount)}</td>
-                      <td><span className={`${tableStyles.badge} ${pColor}`}>{r.priority}</span></td>
-                      <td><span className={`${tableStyles.badge} ${sColor}`}>{r.status}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </DashboardLayout>
+      {/* ══ DISPENSING / USAGE ══════════════════════════════════════ */}
+      {tab === 'disp' && (() => {
+        const guard = tabGuard(dispensingConn, 'drug_dispensing', 'pharmacy', disp);
+        if (guard) return guard;
+ 
+        const rows = disp.rows;
+        const dates = [...new Set(rows.map(r => r.date).filter(Boolean))].sort();
+        const latestDate = dates[dates.length - 1];
+        const dispensedLatest = rows.filter(r => r.date === latestDate).length;
+        const usageValue = rows.reduce((s, r) => s + n(r.value), 0);
+        const distinctDrugs = new Set(rows.map(r => r.drug).filter(Boolean)).size;
+        const distinctPrescribers = new Set(rows.map(r => r.prescriber).filter(Boolean)).size;
+ 
+        return (
+          <>
+            <div className={styles.kpiGrid} style={{ marginBottom: 14 }}>
+              <KPICard label={`Dispensed (${latestDate || 'latest day'})`} value={dispensedLatest} delta="Prescriptions attended" deltaType="up" color="blue" />
+              <KPICard label="Usage Value (Total)" value={fmt(usageValue)} delta="All records in sheet" deltaType="up" color="green" />
+              <KPICard label="Distinct Drugs Dispensed" value={distinctDrugs} delta="Not the full stock register — see Drug Stock tab" deltaType="neutral" color="purple" />
+              <KPICard label="Distinct Prescribers" value={distinctPrescribers} deltaType="neutral" color="amber" />
+            </div>
+ 
+            {/* Reads viz-pharm-004 (value trend) + viz-pharm-002 (by patient type) */}
+            <div>
+              <PageRenderer page="pharmacy" module="drug_dispensing" only={['table']} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <PageRenderer page="pharmacy" module="drug_dispensing" only={['bar']} />
+            </div>
+ 
+            {/* Reads viz-pharm-003 */}
+            <PageRenderer page="pharmacy" module="drug_dispensing" only={['table']} />
+          </>
+        );
+      })()}
+ 
+      {/* ══ DRUG STOCK ══════════════════════════════════════════════ */}
+      {tab === 'stock' && (() => {
+        const guard = tabGuard(drugStockConn, 'drug_stock', 'pharmacy', stock);
+        if (guard) return guard;
+ 
+        const rows = stock.rows;
+        const totalValue = rows.reduce((s, r) => s + n(r.totalValue), 0);
+        const skuCount = new Set(rows.map(r => r.item).filter(Boolean)).size;
+        const low = rows.filter(r => n(r.qty) <= n(r.reorder) && n(r.reorder) > 0);
+        const now = new Date();
+        const expiring = rows.filter(r => {
+          if (!r.expiry) return false;
+          const days = (new Date(r.expiry) - now) / 864e5;
+          return days > 0 && days < 90;
+        });
+ 
+        return (
+          <>
+            <div className={styles.kpiGrid} style={{ marginBottom: 14 }}>
+              <KPICard label="Total Drug Stock Value" value={fmt(totalValue)} color="green" />
+              <KPICard label="Drug SKUs" value={skuCount} delta="In register" deltaType="up" color="purple" />
+              <KPICard label="Low Stock Items" value={low.length}
+                deltaType={low.length > 0 ? 'down' : 'up'} badge={low.length > 0 ? '⚠ Reorder' : '✓ OK'}
+                badgeType={low.length > 0 ? 'bad' : 'good'} color={low.length > 0 ? 'red' : 'green'} />
+              <KPICard label="Expiring ≤ 90 Days" value={expiring.length} delta="Needs review"
+                deltaType={expiring.length > 0 ? 'warn' : 'up'} color={expiring.length > 0 ? 'amber' : 'green'} />
+            </div>
+ 
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:14 }}>
+              {/* Reads viz-drugstock-004 */}
+              <PageRenderer page="pharmacy" module="drug_stock" only={['table']} />
+ 
+              <div>
+                {/* Reads viz-drugstock-003 */}
+                <div style={{ marginBottom: 14 }}>
+                  <PageRenderer page="pharmacy" module="drug_stock" only={['pie']} />
+                </div>
+ 
+                <div className={styles.card}>
+                  <div className={styles.cardTitle}>Alerts</div>
+                  <div style={{ padding:'8px 0' }}>
+                    {low.length > 0 ? low.map(d => (
+                      <div key={d.item} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:11 }}>
+                        <span style={{ fontWeight:600, color:'var(--red)' }}>⚠ {d.item}</span>
+                        <span style={{ color:'var(--red)' }}>{n(d.qty)} left (reorder at {n(d.reorder)})</span>
+                      </div>
+                    )) : <div style={{ color:'var(--teal)', fontSize:11, padding:'8px 0' }}>✓ All drugs are above reorder levels</div>}
+                    {expiring.map(d => (
+                      <div key={`${d.item}-exp`} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:11 }}>
+                        <span style={{ fontWeight:600, color:'var(--amber)' }}>⏰ {d.item}</span>
+                        <span style={{ color:'var(--amber)' }}>Expires {d.expiry}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+ 
+      {/* ══ MY REQUESTS ═════════════════════════════════════════════ */}
+      {tab === 'req' && (() => {
+        const guard = tabGuard(procReqConn, 'procurement_requests', 'pharmacy', reqs);
+        if (guard) return guard;
+ 
+        const rows = reqs.rows;
+        const pending = rows.filter(r => (r.status || '').trim().toUpperCase() === 'PENDING');
+        const totalRequested = rows.reduce((s, r) => s + n(r.amount), 0);
+ 
+        return (
+          <>
+            <div className={styles.kpiGrid} style={{ marginBottom: 14 }}>
+              <KPICard label="Pending Requests" value={pending.length} delta="Awaiting approval" deltaType="warn" color="amber" />
+              <KPICard label="Total Requested" value={fmt(totalRequested)} color="blue" />
+            </div>
+ 
+            <div style={{ background:'#EBF5FB', borderRadius:8, padding:'12px 16px', marginBottom:14, fontSize:11 }}>
+              💡 To raise a new procurement request, use <strong>New Requisition</strong> in the sidebar. Approved requests are routed automatically to Procurement via the P2P workflow.
+            </div>
+ 
+            {/* Reads viz-procreq-002 */}
+            <div style={{ marginBottom: 14 }}>
+              <PageRenderer page="pharmacy" module="procurement_requests" only={['pie']} />
+            </div>
+ 
+            {/* Reads viz-procreq-003 */}
+            <PageRenderer page="pharmacy" module="procurement_requests" only={['table']} />
+          </>
+        );
+      })()}
+    </div>
   );
 }

@@ -5,11 +5,13 @@
       "dept": "Store",
       "module": "stock_register",
       "label": "Stock Register",
-      "sheetId": "",
+      "sheetId": "1_RQzEb1WEvnHIam71FFNinZe1io395osydQdGeJnWYg",
       "tabName": "Stock Register",
-      "range": "A:M",
-      "headerRow": 1,
+      "tabMode": "single",
+      "range": "A:K",
+      "headerRow": 5,
       "periodSource": "tabName",
+      "fillDown": [],
       "columnMap": {
         "itemCode": "Item Code",
         "name": "Item Description",
@@ -31,16 +33,23 @@
           "field": "totalValue",
           "agg": "sum",
           "format": "currency",
-          "color": "blue"
+          "color": "blue",
+          "pages": [
+            "inventory",
+            "overview"
+          ]
         },
         {
           "id": "viz-stock-002",
           "type": "kpi",
-          "label": "Items Below Reorder",
-          "field": "qty",
+          "label": "Total SKUs",
+          "field": "name",
           "agg": "count",
           "format": "number",
-          "color": "red"
+          "color": "navy",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-stock-003",
@@ -50,7 +59,10 @@
           "yField": "totalValue",
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-stock-004",
@@ -68,6 +80,10 @@
             "reorderQty",
             "lastReceived",
             "lastIssued"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -89,28 +105,36 @@
             "totalValue"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "store-srv-receipts",
       "dept": "Store",
       "module": "srv_receipts",
       "label": "SRV Receipts",
-      "sheetId": "12rwCvA2riams6d_Gu31vx8t-DmBS3CctKyAY8iXIMpo",
+      "sheetId": "1gksNaTqqzq_vQUNVLmB6DUeRkXK41GuJfZnOPBA1FZU",
       "tabName": "SRV Receipts",
+      "tabMode": "auto",
       "range": "A:J",
       "headerRow": 5,
       "periodSource": "dateColumn",
+      "fillDown": [
+        "vendor",
+        "invoiceRef"
+      ],
       "columnMap": {
         "date": "Date",
         "vendor": "Vendor",
         "itemCode": "Item Code",
-        "name": "Item Description",
+        "invoice/Waybill Number": "INVOICE NO/ WAYBILL NO",
+        "description": "Description",
         "uom": "UOM",
-        "invoiceRef": "Invoice/Waybill",
-        "qtyRequested": "Qty Requested",
-        "unitPrice": "Unit Price",
-        "total": "Total (Amount)"
+        "requested": "Requested",
+        "received": "Received",
+        "unit price": "Unit Price (N)",
+        "total": "Total (N)",
+        "dept": "DEPARTMENT"
       },
       "visualizations": [
         {
@@ -120,7 +144,10 @@
           "field": "total",
           "agg": "sum",
           "format": "currency",
-          "color": "green"
+          "color": "green",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-srv-002",
@@ -130,22 +157,78 @@
           "yField": "total",
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-srv-003",
           "type": "table",
+          "label": "",
           "title": "SRV Receipts",
+          "field": "",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "catField": "",
+          "valField": "",
           "columns": [
             "date",
             "vendor",
-            "itemCode",
-            "name",
+            "invoice/Waybill Number",
+            "description",
             "uom",
-            "invoiceRef",
-            "qtyRequested",
-            "unitPrice",
-            "total"
+            "requested",
+            "received",
+            "unit price",
+            "total",
+            "dept"
+          ],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
+          ]
+        },
+        {
+          "id": "viz-1784796467600",
+          "type": "grouped_bar",
+          "label": "",
+          "title": "Departments issues requested vs received",
+          "field": "",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "dept",
+          "yField": "",
+          "yFields": [
+            {
+              "field": "requested",
+              "label": "Requested",
+              "color": "#117A65"
+            },
+            {
+              "field": "received",
+              "label": "Received",
+              "color": "#E74C3C"
+            }
+          ],
+          "catField": "",
+          "valField": "",
+          "columns": [],
+          "limit": 15,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -159,71 +242,175 @@
             "total"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "store-siv-issues",
       "dept": "Store",
       "module": "stock_out",
       "label": "SIV Issues",
-      "sheetId": "1lewCDVKM2cdY38UsK1D5diMj0ictMOwykc1Fehgzvv0",
-      "tabName": "SIV Issues",
+      "sheetId": "1YGPMUlbWeEgLHqRZu_YRBCGuSlyKEQPf64BlV0ZfNiY",
+      "tabMode": "auto",
+      "tabs": [
+        {
+          "name": "January",
+          "key": "2026-01"
+        },
+        {
+          "name": "February",
+          "key": "2026-02"
+        },
+        {
+          "name": "March",
+          "key": "2026-03"
+        }
+      ],
       "range": "A:J",
       "headerRow": 9,
-      "periodSource": "dateColumn",
+      "periodSource": "tabName",
+      "fillDown": [
+        "dept",
+        "recipient",
+        "account_head"
+      ],
       "columnMap": {
-        "date_issued": "DATE ISSUED",
-        "item_description": "ITEM DESCRIPTION",
-        "code": "CODE",
-        "quantity_requested": "QUANTITY REQUESTED",
-        "quantity_issued": "QUANTITY ISSUED",
-        "unit_price": "UNIT PRICE (N)",
-        "total": "TOTAL (N)",
-        "account_head": "ACCOUNT HEAD",
-        "department": "DEPARTMENT",
-        "name_of_recipient": "NAME OF RECIPIENT"
+        "date": "Date Issued",
+        "name": "Item Description",
+        "itemCode": "Code",
+        "qtyRequested": "Quantity Requested",
+        "qtyIssued": "Quantity Issued",
+        "unitPrice": "Unit Price",
+        "total": "Total",
+        "account_head": "Account Head",
+        "dept": "Department",
+        "recipient": "Name of Recipient"
       },
       "visualizations": [
         {
           "id": "viz-siv-001",
           "type": "kpi",
           "label": "Total Issued Value",
-          "field": "total",
+          "title": "",
+          "field": "qtyIssued",
           "agg": "sum",
           "format": "currency",
-          "color": "amber"
+          "color": "amber",
+          "xField": "",
+          "yField": "",
+          "catField": "",
+          "valField": "",
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-siv-002",
-          "type": "bar",
-          "title": "Top 10 Most Issued Items",
-          "xField": "name",
-          "yField": "qty",
+          "type": "kpi",
+          "label": "Total Issues",
+          "title": "",
+          "field": "qtyIssued",
+          "agg": "count",
+          "format": "number",
+          "color": "navy",
+          "xField": "",
+          "yField": "",
+          "catField": "",
+          "valField": "",
+          "columns": [],
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-siv-003",
-          "type": "pie",
-          "title": "Issues by Department",
-          "catField": "dept",
-          "valField": "total"
+          "type": "bar",
+          "label": "",
+          "title": "Top 10 Most Issued Items",
+          "field": "",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "xField": "name",
+          "yField": "qtyIssued",
+          "catField": "",
+          "valField": "",
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-siv-004",
+          "type": "pie",
+          "label": "",
+          "title": "Issues by Department",
+          "field": "",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "catField": "dept",
+          "valField": "qtyIssued",
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
+          ]
+        },
+        {
+          "id": "viz-siv-005",
           "type": "table",
+          "label": "",
           "title": "SIV Issues",
+          "field": "",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "catField": "",
+          "valField": "",
           "columns": [
-            "date_issued",
-            "item_description",
-            "quantity_requested",
-            "unit_price",
-            "quantity_issued",
+            "date",
+            "name",
+            "itemCode",
+            "qtyIssued",
+            "qtyRequested",
+            "unitPrice",
             "total",
             "account_head",
-            "department",
-            "name_of_recipient"
+            "dept",
+            "recipient"
+          ],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -237,18 +424,21 @@
             "total"
           ]
         }
-      ]
+      ],
+      "tabName": ""
     },
     {
       "id": "store-reorder-alerts",
       "dept": "Store",
       "module": "reorder_alerts",
       "label": "Reorder Alerts",
-      "sheetId": "",
+      "sheetId": "1_RQzEb1WEvnHIam71FFNinZe1io395osydQdGeJnWYg",
       "tabName": "Reorder Alert",
+      "tabMode": "single",
       "range": "A:F",
-      "headerRow": 1,
+      "headerRow": 4,
       "periodSource": "tabName",
+      "fillDown": [],
       "columnMap": {
         "itemCode": "Item Code",
         "name": "Item Description",
@@ -265,10 +455,25 @@
           "field": "estReorderValue",
           "agg": "sum",
           "format": "currency",
-          "color": "purple"
+          "color": "purple",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-reorder-002",
+          "type": "kpi",
+          "label": "Items to Reorder",
+          "field": "name",
+          "agg": "count",
+          "format": "number",
+          "color": "red",
+          "pages": [
+            "inventory"
+          ]
+        },
+        {
+          "id": "viz-reorder-003",
           "type": "table",
           "title": "Reorder Alerts",
           "columns": [
@@ -278,6 +483,10 @@
             "reorder",
             "qtyRequired",
             "estReorderValue"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -291,18 +500,21 @@
             "reorder"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "store-stock-movement",
       "dept": "Store",
       "module": "stock_movement",
       "label": "Stock Movement",
-      "sheetId": "",
+      "sheetId": "1_RQzEb1WEvnHIam71FFNinZe1io395osydQdGeJnWYg",
       "tabName": "Stock Movement",
-      "range": "A:G",
-      "headerRow": 1,
+      "tabMode": "single",
+      "range": "A:F",
+      "headerRow": 4,
       "periodSource": "tabName",
+      "fillDown": [],
       "columnMap": {
         "itemCode": "Item Code",
         "name": "Item Description",
@@ -320,7 +532,10 @@
           "yField": "totalReceipts",
           "limit": 10,
           "sort": "none",
-          "orientation": "vertical"
+          "orientation": "vertical",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-mov-002",
@@ -333,6 +548,10 @@
             "totalReceipts",
             "totalIssues",
             "closingBalance"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -348,18 +567,23 @@
             "closingBalance"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "store-inventory-valuation",
       "dept": "Store",
       "module": "inventory_valuation",
       "label": "Inventory Valuation",
-      "sheetId": "",
+      "sheetId": "1_RQzEb1WEvnHIam71FFNinZe1io395osydQdGeJnWYg",
       "tabName": "Inventory Valuation",
+      "tabMode": "single",
       "range": "A:G",
-      "headerRow": 1,
+      "headerRow": 4,
       "periodSource": "tabName",
+      "fillDown": [
+        "classification"
+      ],
       "columnMap": {
         "itemCode": "Item Code",
         "name": "Item Description",
@@ -375,7 +599,10 @@
           "type": "pie",
           "title": "ABC Classification",
           "catField": "classification",
-          "valField": "totalValue"
+          "valField": "totalValue",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-val-002",
@@ -385,7 +612,10 @@
           "yField": "totalValue",
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "pages": [
+            "inventory"
+          ]
         },
         {
           "id": "viz-val-003",
@@ -399,6 +629,10 @@
             "totalValue",
             "pctOfTotal",
             "classification"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "inventory"
           ]
         }
       ],
@@ -413,18 +647,24 @@
             "totalValue"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "pharmacy-dispensing",
       "dept": "Pharmacy",
       "module": "drug_dispensing",
       "label": "Drug Dispensing",
-      "sheetId": "",
+      "sheetId": "1OJQNyn0mMGoDHP6cmacVuml5r8-g_S3u_h_ADwYaMkY",
       "tabName": "Dispensing",
-      "range": "A:J",
+      "tabMode": "single",
+      "range": "A:I",
       "headerRow": 1,
       "periodSource": "dateColumn",
+      "fillDown": [
+        "prescriber",
+        "dtype"
+      ],
       "columnMap": {
         "date": "Date",
         "drug": "Drug / Item",
@@ -433,7 +673,8 @@
         "patient": "Patient / Ward",
         "prescriber": "Prescriber",
         "dtype": "Patient Type",
-        "value": "Total Value"
+        "value": "Total Value",
+        "unitPrice": "Unit Price"
       },
       "visualizations": [
         {
@@ -443,7 +684,10 @@
           "field": "value",
           "agg": "sum",
           "format": "currency",
-          "color": "blue"
+          "color": "blue",
+          "pages": [
+            "pharmacy"
+          ]
         },
         {
           "id": "viz-pharm-002",
@@ -453,7 +697,10 @@
           "yField": "qty",
           "limit": 10,
           "sort": "desc",
-          "orientation": "vertical"
+          "orientation": "vertical",
+          "pages": [
+            "pharmacy"
+          ]
         },
         {
           "id": "viz-pharm-003",
@@ -468,6 +715,10 @@
             "prescriber",
             "dtype",
             "value"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "pharmacy"
           ]
         }
       ],
@@ -481,18 +732,21 @@
             "value"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "finance-revenue-monthly",
       "dept": "Finance",
       "module": "revenue_monthly",
       "label": "Monthly Revenue & Expenses",
-      "sheetId": "",
+      "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
       "tabName": "Revenue Summary",
+      "tabMode": "single",
       "range": "A:D",
       "headerRow": 1,
       "periodSource": "dateColumn",
+      "fillDown": [],
       "columnMap": {
         "month": "Month",
         "revenue": "Revenue",
@@ -507,7 +761,12 @@
           "field": "revenue",
           "agg": "sum",
           "format": "currency",
-          "color": "green"
+          "color": "green",
+          "pages": [
+            "overview",
+            "cashbook",
+            "weekly"
+          ]
         },
         {
           "id": "viz-rev-002",
@@ -516,7 +775,13 @@
           "field": "expenses",
           "agg": "sum",
           "format": "currency",
-          "color": "red"
+          "color": "red",
+          "pages": [
+            "overview",
+            "cashbook",
+            "expenses",
+            "weekly"
+          ]
         },
         {
           "id": "viz-rev-003",
@@ -530,7 +795,11 @@
           "targetLine": {
             "field": "target",
             "label": "Target"
-          }
+          },
+          "pages": [
+            "overview",
+            "weekly"
+          ]
         },
         {
           "id": "viz-rev-004",
@@ -541,13 +810,20 @@
             "revenue",
             "expenses",
             "target"
+          ],
+          "defaultLimit": 12,
+          "pages": [
+            "overview",
+            "cashbook",
+            "expenses",
+            "weekly"
           ]
         }
       ],
       "feeds": [
         {
           "page": "overview",
-          "section": "Revenue vs Target chart + all KPI cards",
+          "section": "Revenue vs Target chart + KPI cards",
           "requiredFields": [
             "month",
             "revenue",
@@ -580,18 +856,158 @@
             "expenses"
           ]
         }
-      ]
+      ],
+      "tabs": []
+    },
+    {
+      "id": "finance-revenue-ledger",
+      "dept": "Finance",
+      "module": "revenue_ledger",
+      "label": "Revenue Ledger",
+      "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+      "tabName": "Revenue Ledger",
+      "tabMode": "single",
+      "range": "A:F",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "department": "Department",
+        "item": "Item / Service",
+        "paymentMethod": "Payment Method",
+        "amount": "Amount",
+        "target": "Target"
+      },
+      "visualizations": [
+        {
+          "id": "viz-revl-001",
+          "type": "kpi",
+          "label": "Total Revenue YTD",
+          "field": "amount",
+          "agg": "sum",
+          "format": "currency",
+          "color": "green",
+          "pages": [
+            "revenue",
+            "departments"
+          ]
+        },
+        {
+          "id": "viz-revl-002",
+          "type": "kpi",
+          "label": "Revenue Streams",
+          "field": "item",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "blue",
+          "pages": [
+            "revenue"
+          ]
+        },
+        {
+          "id": "viz-revl-003",
+          "type": "kpi",
+          "label": "Departments Reporting",
+          "field": "department",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "navy",
+          "pages": [
+            "departments"
+          ]
+        },
+        {
+          "id": "viz-revl-004",
+          "type": "bar",
+          "title": "Top Revenue Streams",
+          "xField": "item",
+          "yField": "amount",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "format": "currency",
+          "pages": [
+            "revenue"
+          ]
+        },
+        {
+          "id": "viz-revl-005",
+          "type": "pie",
+          "title": "Payment Method Mix",
+          "catField": "paymentMethod",
+          "valField": "amount",
+          "format": "currency",
+          "pages": [
+            "revenue"
+          ]
+        },
+        {
+          "id": "viz-revl-006",
+          "type": "bar",
+          "title": "Revenue by Department",
+          "xField": "department",
+          "yField": "amount",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "format": "currency",
+          "pages": [
+            "departments"
+          ]
+        },
+        {
+          "id": "viz-revl-007",
+          "type": "table",
+          "title": "Revenue Ledger",
+          "columns": [
+            "date",
+            "department",
+            "item",
+            "paymentMethod",
+            "amount"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "departments"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "revenue",
+          "section": "Revenue Streams page",
+          "requiredFields": [
+            "item",
+            "paymentMethod",
+            "amount"
+          ]
+        },
+        {
+          "page": "departments",
+          "section": "Department Analysis page",
+          "requiredFields": [
+            "department",
+            "amount"
+          ]
+        }
+      ],
+      "tabs": []
     },
     {
       "id": "finance-debtors",
       "dept": "Finance",
       "module": "debtors",
       "label": "Debtors / Receivables",
-      "sheetId": "",
+      "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
       "tabName": "Debtors",
+      "tabMode": "single",
       "range": "A:E",
       "headerRow": 1,
       "periodSource": "dateColumn",
+      "fillDown": [
+        "category"
+      ],
       "columnMap": {
         "category": "Category",
         "amount": "Outstanding Amount",
@@ -607,7 +1023,10 @@
           "field": "amount",
           "agg": "sum",
           "format": "currency",
-          "color": "red"
+          "color": "red",
+          "pages": [
+            "debtors"
+          ]
         },
         {
           "id": "viz-debt-002",
@@ -617,7 +1036,10 @@
           "yField": "amount",
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "pages": [
+            "debtors"
+          ]
         },
         {
           "id": "viz-debt-003",
@@ -629,6 +1051,10 @@
             "priority",
             "contact",
             "date"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "debtors"
           ]
         }
       ],
@@ -641,6 +1067,113 @@
             "amount"
           ]
         }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "finance-budgets",
+      "dept": "Finance",
+      "module": "budgets",
+      "label": "Department Budgets",
+      "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+      "tabName": "Budgets",
+      "tabMode": "single",
+      "range": "A:C",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "department": "Department",
+        "type": "Type",
+        "amount": "Annual Budget"
+      },
+      "visualizations": [
+        {
+          "id": "viz-budget-001",
+          "type": "table",
+          "title": "All Department Budgets",
+          "columns": [
+            "department",
+            "type",
+            "amount"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "budget"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "budget",
+          "section": "Budget vs Actual page",
+          "requiredFields": [
+            "department",
+            "type",
+            "amount"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "finance-bank-statement",
+      "dept": "Finance",
+      "module": "bank_statement",
+      "label": "Bank Statement",
+      "sheetId": "",
+      "tabName": "Bank Statement",
+      "tabMode": "single",
+      "range": "A:D",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "description": "Description",
+        "amount": "Amount",
+        "ref": "Reference"
+      },
+      "visualizations": [],
+      "feeds": [
+        {
+          "page": "bankrec",
+          "section": "Bank Reconciliation page",
+          "requiredFields": [
+            "date",
+            "amount"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "finance-cashbook-entries",
+      "dept": "Finance",
+      "module": "cashbook_entries",
+      "label": "Cashbook Entries",
+      "sheetId": "",
+      "tabName": "Cashbook Entries",
+      "tabMode": "single",
+      "range": "A:D",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "description": "Description",
+        "amount": "Amount",
+        "ref": "Reference"
+      },
+      "visualizations": [],
+      "feeds": [
+        {
+          "page": "bankrec",
+          "section": "Bank Reconciliation page",
+          "requiredFields": [
+            "date",
+            "amount"
+          ]
+        }
       ]
     },
     {
@@ -648,11 +1181,15 @@
       "dept": "Procurement",
       "module": "purchase_orders",
       "label": "Purchase Orders",
-      "sheetId": "",
+      "sheetId": "1eST0VZa7-4JIaJl3At2cQrBSBZYuW3LyYnFpKo__waM",
       "tabName": "Purchase Orders",
+      "tabMode": "single",
       "range": "A:I",
       "headerRow": 1,
       "periodSource": "dateColumn",
+      "fillDown": [
+        "vendor"
+      ],
       "columnMap": {
         "poNo": "PO No",
         "date": "Date",
@@ -661,7 +1198,8 @@
         "qty": "Quantity",
         "total": "Total Value",
         "expectedDate": "Expected Delivery",
-        "status": "Status"
+        "status": "Status",
+        "uom": "UOM"
       },
       "visualizations": [
         {
@@ -671,7 +1209,10 @@
           "field": "total",
           "agg": "sum",
           "format": "currency",
-          "color": "blue"
+          "color": "blue",
+          "pages": [
+            "supplychain"
+          ]
         },
         {
           "id": "viz-po-002",
@@ -681,14 +1222,20 @@
           "yField": "total",
           "limit": 10,
           "sort": "desc",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "pages": [
+            "supplychain"
+          ]
         },
         {
           "id": "viz-po-003",
           "type": "pie",
           "title": "PO Status Breakdown",
           "catField": "status",
-          "valField": "total"
+          "valField": "total",
+          "pages": [
+            "supplychain"
+          ]
         },
         {
           "id": "viz-po-004",
@@ -703,6 +1250,10 @@
             "total",
             "expectedDate",
             "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "supplychain"
           ]
         }
       ],
@@ -715,7 +1266,8 @@
             "total"
           ]
         }
-      ]
+      ],
+      "tabs": []
     },
     {
       "id": "procurement-grn",
@@ -724,9 +1276,14 @@
       "label": "Goods Received Notes",
       "sheetId": "",
       "tabName": "GRN",
+      "tabMode": "single",
       "range": "A:I",
       "headerRow": 1,
       "periodSource": "dateColumn",
+      "fillDown": [
+        "vendor",
+        "poRef"
+      ],
       "columnMap": {
         "grnNo": "GRN No",
         "date": "Date",
@@ -746,7 +1303,10 @@
           "field": "recvValue",
           "agg": "sum",
           "format": "currency",
-          "color": "green"
+          "color": "green",
+          "pages": [
+            "grn"
+          ]
         },
         {
           "id": "viz-grn-002",
@@ -762,6 +1322,10 @@
             "recvQty",
             "recvValue",
             "condition"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "grn"
           ]
         }
       ],
@@ -776,11 +1340,2359 @@
           ]
         }
       ]
+    },
+    {
+      "id": "conn-1784632264313",
+      "label": "Medical Consumables",
+      "dept": "Store",
+      "module": "medical_consumables",
+      "sheetId": "1xTdGJpF_Kg-jvXcts9yVj_UToXsNYm0rjpxvrhNqYw4",
+      "range": "A:U",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "tabMode": "single",
+      "tabName": "Sheet1",
+      "tabs": [],
+      "visualizations": [
+        {
+          "id": "viz-1784635389071",
+          "type": "kpi",
+          "label": "Total number of stocks at the start of July",
+          "title": "",
+          "field": "Starting stock",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "catField": "",
+          "valField": "",
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "store"
+          ]
+        },
+        {
+          "id": "viz-1784635554109",
+          "type": "bar",
+          "label": "",
+          "title": "",
+          "field": "",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "xField": "Item Names",
+          "yField": "MAIN STORE REMAINING STOCK",
+          "catField": "",
+          "valField": "",
+          "columns": [],
+          "limit": 100,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "pages": [
+            "store"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "store",
+          "section": "",
+          "requiredFields": []
+        }
+      ],
+      "columnMap": {
+        "Item Names": "ITEM NAMES",
+        "uom": "UoM",
+        "Starting stock": "STARTING STOCK FOR JULY",
+        "Stock Count (Dialysis)": "Stock Count (DIALYSIS)",
+        "Stock Count (ICU)": "Stock Count (ICU)",
+        "Stock Count (LABORATORY)": "Stock Count (LABORATORY)",
+        "Stock Count (RADIOLOGY)": "Stock Count (RADIOLOGY)",
+        "Stock Count (GF THEATRE)": "Stock Count(GF Theatre)",
+        "Stock Count (1st Floor Theatre)": "Stock Count  (1st Floor Theatre)",
+        "CSSD STOCK COUNT": "CSSD STOCK COUNT",
+        "Stock Count (Anaesthetic)": "Stock Count (Anaesthetic)",
+        "Stock count (Opthalmology)": "Stock count (Opthalmology)",
+        "STOCK IN": "STOCK IN",
+        "STOCK OUT": "STOCK OUT",
+        "MAIN STORE REMAINING STOCK": "MAIN STORE REMAINING STOCK",
+        "COST PRICE": "COST PRICE",
+        "STOCK IN VALUE": "STOCK IN VALUE",
+        "STOCK OUT VALUE": "STOCK OUT VALUE",
+        "REORDER LEVEL 1MONTH": "REORDER LEVEL 1MONTH",
+        "MINIMUM STOCK LEVEL": "MINIMUM STOCK LEVEL",
+        "EMERGENCY LEVEL(DANGER)": "EMERGENCY LEVEL(DANGER)"
+      },
+      "createdAt": "2026-07-21T11:27:35.440Z"
+    },
+    {
+      "id": "pharmacy-drug-stock",
+      "dept": "Pharmacy",
+      "module": "drug_stock",
+      "label": "Drug & Consumable Stock",
+      "sheetId": "1s1K1lV3ttyUyI9T6GAw68596csYrDOTQBLHhcBUhEU4",
+      "tabName": "Drug Stock",
+      "tabMode": "single",
+      "range": "A:H",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "item": "Item",
+        "category": "Category",
+        "qty": "Qty In Stock",
+        "unit": "Unit",
+        "unitCost": "Unit Cost",
+        "totalValue": "Total Value",
+        "reorder": "Reorder Level",
+        "expiry": "Expiry Date"
+      },
+      "visualizations": [
+        {
+          "id": "viz-drugstock-001",
+          "type": "kpi",
+          "label": "Total Drug Stock Value",
+          "field": "totalValue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "green",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-drugstock-002",
+          "type": "kpi",
+          "label": "Drug SKUs",
+          "field": "item",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "purple",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-drugstock-003",
+          "type": "pie",
+          "title": "Stock Value by Category",
+          "catField": "category",
+          "valField": "totalValue",
+          "format": "currency",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-drugstock-004",
+          "type": "table",
+          "title": "Drug & Consumable Stock Levels",
+          "columns": [
+            "item",
+            "category",
+            "qty",
+            "unit",
+            "unitCost",
+            "reorder",
+            "expiry"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "pharmacy"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "pharmacy",
+          "section": "Drug Stock tab",
+          "requiredFields": [
+            "item",
+            "qty",
+            "reorder"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "pharmacy-procurement-requests",
+      "dept": "Pharmacy",
+      "module": "procurement_requests",
+      "label": "My Requests",
+      "sheetId": "",
+      "tabName": "My Requests",
+      "tabMode": "single",
+      "range": "A:E",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "title": "Title",
+        "amount": "Amount",
+        "priority": "Priority",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-procreq-001",
+          "type": "kpi",
+          "label": "Total Requested Amount",
+          "field": "amount",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-procreq-002",
+          "type": "pie",
+          "title": "Requests by Status",
+          "catField": "status",
+          "valField": "amount",
+          "format": "currency",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-procreq-003",
+          "type": "table",
+          "title": "My Procurement Requests",
+          "columns": [
+            "date",
+            "title",
+            "amount",
+            "priority",
+            "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "pharmacy"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "pharmacy",
+          "section": "My Requests tab",
+          "requiredFields": [
+            "title",
+            "amount",
+            "status"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pharmacy-scorecard",
+      "dept": "Pharmacy",
+      "module": "pharmacy_scorecard",
+      "label": "Pharmacy 2026 Scorecard",
+      "sheetId": "1OJQNyn0mMGoDHP6cmacVuml5r8-g_S3u_h_ADwYaMkY",
+      "_HEADER_ROW_REFERENCE": {
+        "_WHAT_THIS_IS": "Row 6 (+ row 7 sub-header) of the actual sheet, copied verbatim, so colMap/periodCols below can be checked against it at a glance instead of trusting memory.",
+        "A": "S/No.",
+        "B": "KPI CATEGORY",
+        "C": "KPI",
+        "D": "Measures",
+        "E": "(blank in the sheet — see _COLUMN_E_NOTE below)",
+        "F/G/H": "JAN / FEB / MAR   — grouped under 'Q1'",
+        "I/J/K": "APR / MAY / JUN   — grouped under 'Q2'",
+        "L/M/N": "JUL / AUG / SEPT  — grouped under 'Q3'",
+        "O/P/Q": "OCT / NOV / DEC   — grouped under 'Q4'",
+        "R/S/T": "Below / On Target / Outstanding — grouped under 'Performance Range' (not fetched — outside our range)",
+        "U/V/W": "Remarks / Range / Performance (not fetched — outside our range)"
+      },
+      "_COLUMN_E_NOTE": "Unlabeled in the sheet, but it holds unit/target text (e.g. '10 minutes per prescription') and, for two rows, the composite sub-labels (e.g. 'Pharmacist: Pharm. Tech.: Porter: Admin'). Recommend adding the header 'Unit / Target' to row 6 col E in the actual sheet for clarity — our code reads it by column letter, not header text, so this is purely for human readers.",
+      "_NOTE_1": "⚠️ CONFIRM this tab name in Settings → Test & Load, then paste the exact tab text below. I couldn't read it from a public scrape (gid=857255184 didn't resolve to a tab name without sign-in).",
+      "tabName": "Master",
+      "tabMode": "scorecard",
+      "range": "A6:W57",
+      "scorecard": {
+        "dataStartOffset": 2,
+        "colMap": {
+          "sNo": "A",
+          "category": "B",
+          "kpiNo": "C",
+          "measure": "D"
+        },
+        "periodCols": {
+          "F": {
+            "key": "2026-01",
+            "label": "JAN"
+          },
+          "G": {
+            "key": "2026-02",
+            "label": "FEB"
+          },
+          "H": {
+            "key": "2026-03",
+            "label": "MAR"
+          },
+          "I": {
+            "key": "2026-04",
+            "label": "APR"
+          },
+          "J": {
+            "key": "2026-05",
+            "label": "MAY"
+          },
+          "K": {
+            "key": "2026-06",
+            "label": "JUN"
+          },
+          "L": {
+            "key": "2026-07",
+            "label": "JUL"
+          },
+          "M": {
+            "key": "2026-08",
+            "label": "AUG"
+          },
+          "N": {
+            "key": "2026-09",
+            "label": "SEPT"
+          },
+          "O": {
+            "key": "2026-10",
+            "label": "OCT"
+          },
+          "P": {
+            "key": "2026-11",
+            "label": "NOV"
+          },
+          "Q": {
+            "key": "2026-12",
+            "label": "DEC"
+          }
+        },
+        "compositeOverrides": []
+      },
+      "feeds": [
+        {
+          "page": "pharmacy",
+          "section": "Scorecard",
+          "requiredFields": [
+            "measure",
+            "value"
+          ]
+        }
+      ],
+      "visualizations": [
+        {
+          "id": "viz-scorecard-001",
+          "type": "kpi",
+          "label": "Total KPI Data Points",
+          "field": "value",
+          "agg": "count",
+          "format": "number",
+          "color": "blue",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-scorecard-002",
+          "type": "kpi",
+          "label": "KPI Categories Tracked",
+          "field": "category",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "green",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-scorecard-003",
+          "type": "kpi",
+          "label": "Distinct Metrics Tracked",
+          "field": "metric",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "purple",
+          "pages": [
+            "pharmacy"
+          ]
+        },
+        {
+          "id": "viz-scorecard-004",
+          "type": "table",
+          "title": "Pharmacy Scorecard — All KPI Readings",
+          "columns": [
+            "category",
+            "metric",
+            "unit",
+            "value",
+            "_monthLabel"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "pharmacy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cssd-batches",
+      "dept": "CSSD",
+      "module": "cssd_batches",
+      "label": "CSSD Batches",
+      "sheetId": "15TUqoWAuVZz_g75Zwb57usjPzVNWRbrNOnDV6F4JFmA",
+      "tabName": "CSSD Batches",
+      "tabMode": "single",
+      "range": "A:J",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "dept": "Department",
+        "processed": "Packs Processed",
+        "sterilized": "Packs Sterilised",
+        "returnedDmg": "Returned Damaged",
+        "method": "Sterilisation Method",
+        "by": "Logged By",
+        "revenue": "Revenue",
+        "expense": "Expense",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-cssdb-001",
+          "type": "kpi",
+          "label": "Packs Processed",
+          "field": "processed",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-002",
+          "type": "kpi",
+          "label": "Packs Sterilised",
+          "field": "sterilized",
+          "agg": "sum",
+          "format": "number",
+          "color": "green",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-003",
+          "type": "kpi",
+          "label": "Returned / Damaged",
+          "field": "returnedDmg",
+          "agg": "sum",
+          "format": "number",
+          "color": "amber",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-004",
+          "type": "kpi",
+          "label": "Revenue Generated",
+          "field": "revenue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "teal",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-005",
+          "type": "kpi",
+          "label": "Operating Expense",
+          "field": "expense",
+          "agg": "sum",
+          "format": "currency",
+          "color": "red",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-006",
+          "type": "bar",
+          "title": "Sterilisation Demand by Department",
+          "xField": "dept",
+          "yField": "processed",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "format": "number",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-007",
+          "type": "grouped_bar",
+          "title": "Monthly Packs Processed vs Sterilised",
+          "xField": "date",
+          "yFields": [
+            {
+              "field": "processed",
+              "label": "Processed",
+              "color": "#1B4F72"
+            },
+            {
+              "field": "sterilized",
+              "label": "Sterilised",
+              "color": "#117A65"
+            }
+          ],
+          "format": "number",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-008",
+          "type": "grouped_bar",
+          "title": "Monthly Revenue vs Expense",
+          "xField": "date",
+          "yFields": [
+            {
+              "field": "revenue",
+              "label": "Revenue",
+              "color": "#117A65"
+            },
+            {
+              "field": "expense",
+              "label": "Expense",
+              "color": "#C0392B"
+            }
+          ],
+          "format": "currency",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdb-009",
+          "type": "table",
+          "title": "Sterilisation Batch Log",
+          "columns": [
+            "date",
+            "dept",
+            "processed",
+            "sterilized",
+            "returnedDmg",
+            "method",
+            "revenue",
+            "expense",
+            "by",
+            "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "cssd"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "cssd",
+          "section": "Batch Log tab",
+          "requiredFields": [
+            "date",
+            "dept",
+            "processed",
+            "sterilized"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "cssd-packs",
+      "dept": "CSSD",
+      "module": "cssd_packs",
+      "label": "CSSD Pack Inventory",
+      "sheetId": "15TUqoWAuVZz_g75Zwb57usjPzVNWRbrNOnDV6F4JFmA",
+      "tabName": "CSSD Packs",
+      "tabMode": "single",
+      "range": "A:G",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "packId": "Pack ID",
+        "name": "Pack Name",
+        "category": "Category",
+        "items": "Contents",
+        "qty": "Qty Available",
+        "unitCost": "Unit Cost",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-cssdp-001",
+          "type": "kpi",
+          "label": "Pack Types",
+          "field": "packId",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "purple",
+          "pages": [
+            "cssd"
+          ]
+        },
+        {
+          "id": "viz-cssdp-002",
+          "type": "table",
+          "title": "Pack Inventory Register",
+          "columns": [
+            "packId",
+            "name",
+            "category",
+            "items",
+            "qty",
+            "unitCost",
+            "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "cssd"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "cssd",
+          "section": "Pack Inventory tab",
+          "requiredFields": [
+            "name",
+            "qty",
+            "status"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "kitchen-orders",
+      "dept": "Kitchen",
+      "module": "kitchen_orders",
+      "label": "Kitchen Meal Orders",
+      "sheetId": "1IqcX-NACV82YCJ0E1SYxPzZsc7aI7Y4PXTgtEkPygUA",
+      "tabName": "Meal Orders",
+      "tabMode": "single",
+      "range": "A:J",
+      "headerRow": 1,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "date": "Date",
+        "patient": "Patient",
+        "ward": "Ward",
+        "mealTime": "Meal Time",
+        "meal": "Menu Item",
+        "diet": "Diet Type",
+        "qty": "Qty",
+        "unitCost": "Unit Cost",
+        "cost": "Cost",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-kord-001",
+          "type": "kpi",
+          "label": "Total Meals Served",
+          "field": "qty",
+          "agg": "sum",
+          "format": "number",
+          "color": "green",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kord-002",
+          "type": "kpi",
+          "label": "Total Meal Cost",
+          "field": "cost",
+          "agg": "sum",
+          "format": "currency",
+          "color": "amber",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kord-003",
+          "type": "bar",
+          "title": "Orders by Ward",
+          "xField": "ward",
+          "yField": "qty",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "format": "number",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kord-004",
+          "type": "pie",
+          "title": "Meals by Meal Time",
+          "catField": "mealTime",
+          "valField": "qty",
+          "format": "number",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kord-005",
+          "type": "bar",
+          "title": "Meals by Diet Type",
+          "xField": "diet",
+          "yField": "qty",
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "vertical",
+          "format": "number",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kord-006",
+          "type": "table",
+          "title": "Meal Order Register",
+          "columns": [
+            "date",
+            "patient",
+            "ward",
+            "mealTime",
+            "meal",
+            "diet",
+            "qty",
+            "cost",
+            "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "kitchen"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "kitchen",
+          "section": "Meal Orders tab",
+          "requiredFields": [
+            "patient",
+            "ward",
+            "meal",
+            "qty"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "kitchen-menu",
+      "dept": "Kitchen",
+      "module": "kitchen_menu",
+      "label": "Kitchen Menu",
+      "sheetId": "1IqcX-NACV82YCJ0E1SYxPzZsc7aI7Y4PXTgtEkPygUA",
+      "tabName": "Menu",
+      "tabMode": "single",
+      "range": "A:G",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "code": "Code",
+        "name": "Menu Item",
+        "category": "Category",
+        "diet": "Diet Type",
+        "cost": "Cost Price",
+        "sell": "Selling Price",
+        "status": "Status"
+      },
+      "visualizations": [
+        {
+          "id": "viz-kmenu-001",
+          "type": "kpi",
+          "label": "Active Menu Items",
+          "field": "code",
+          "agg": "countDistinct",
+          "format": "number",
+          "color": "teal",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kmenu-002",
+          "type": "table",
+          "title": "Menu Register",
+          "columns": [
+            "code",
+            "name",
+            "category",
+            "diet",
+            "cost",
+            "sell",
+            "status"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "kitchen"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "kitchen",
+          "section": "Menu tab",
+          "requiredFields": [
+            "name",
+            "cost",
+            "sell",
+            "status"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "kitchen-store",
+      "dept": "Kitchen",
+      "module": "kitchen_store",
+      "label": "Kitchen Store",
+      "sheetId": "1IqcX-NACV82YCJ0E1SYxPzZsc7aI7Y4PXTgtEkPygUA",
+      "tabName": "Kitchen Store",
+      "tabMode": "single",
+      "range": "A:G",
+      "headerRow": 1,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "item": "Item",
+        "category": "Category",
+        "qty": "Qty On Hand",
+        "unit": "Unit",
+        "cost": "Unit Cost",
+        "totalValue": "Total Value",
+        "reorder": "Reorder Level"
+      },
+      "visualizations": [
+        {
+          "id": "viz-kstore-001",
+          "type": "kpi",
+          "label": "Kitchen Store Value",
+          "field": "totalValue",
+          "agg": "sum",
+          "format": "currency",
+          "color": "blue",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kstore-002",
+          "type": "pie",
+          "title": "Kitchen Store Value by Category",
+          "catField": "category",
+          "valField": "totalValue",
+          "format": "currency",
+          "pages": [
+            "kitchen"
+          ]
+        },
+        {
+          "id": "viz-kstore-003",
+          "type": "table",
+          "title": "Ingredient / Kitchen Stock Register",
+          "columns": [
+            "item",
+            "category",
+            "qty",
+            "unit",
+            "cost",
+            "totalValue",
+            "reorder"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "kitchen"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "kitchen",
+          "section": "Kitchen Store tab",
+          "requiredFields": [
+            "item",
+            "qty",
+            "reorder"
+          ]
+        }
+      ],
+      "tabs": []
+    },
+    {
+      "id": "it-kpi-weekly",
+      "dept": "IT",
+      "module": "it_kpi_weekly",
+      "label": "IT Weekly KPIs",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "A:Q",
+      "headerRow": 11,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "sNo": "S/No.",
+        "core": "Core",
+        "kpiGroup": "KPI Group",
+        "criteria": "Criteria",
+        "unit": "Unit",
+        "target": "Target",
+        "week1": "week 1",
+        "week2": "week 2",
+        "week3": "week 3",
+        "week4": "week 4",
+        "week5": "week 5",
+        "average": "Average",
+        "prevMonth": "Previous Month",
+        "thisMonth": "This Month"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itkpi-001",
+          "type": "table",
+          "title": "Weekly KPI Tracker",
+          "columns": [
+            "kpiGroup",
+            "criteria",
+            "unit",
+            "target",
+            "week1",
+            "week2",
+            "week3",
+            "week4",
+            "week5",
+            "average",
+            "prevMonth",
+            "thisMonth"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "KPI Tracker tab",
+          "requiredFields": [
+            "kpiGroup",
+            "criteria",
+            "thisMonth"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-devices-equipment",
+      "dept": "IT",
+      "module": "it_devices",
+      "label": "IT Devices & Equipment",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "A:H",
+      "headerRow": 45,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "deviceName": "Device Name",
+        "statusQty": "Quantity",
+        "statusGood": "Good",
+        "statusFaulty": "Faulty",
+        "usageDeployed": "Deployed/ In Use",
+        "usageInStore": "In Store",
+        "usageInRepair": "In Repair"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itdev-001",
+          "type": "table",
+          "title": "Devices & Equipment",
+          "columns": [
+            "deviceName",
+            "statusQty",
+            "statusGood",
+            "statusFaulty",
+            "usageDeployed",
+            "usageInStore",
+            "usageInRepair"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "Devices & Equipment tab",
+          "requiredFields": [
+            "deviceName",
+            "statusQty"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-recurrent-subscriptions",
+      "dept": "IT",
+      "module": "it_recurrent_subscriptions",
+      "label": "Recurrent Subscriptions",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "D:E",
+      "headerRow": 80,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "subscription": "Recurrent Subscriptions",
+        "renewalDate": "Renewal Due Date"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itsub-001",
+          "type": "table",
+          "title": "Recurrent Subscriptions",
+          "columns": [
+            "subscription",
+            "renewalDate"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "Subscriptions tab",
+          "requiredFields": [
+            "subscription",
+            "renewalDate"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-software-subscriptions",
+      "dept": "IT",
+      "module": "it_software_subscriptions",
+      "label": "Software Subscriptions",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "D:F",
+      "headerRow": 90,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "softwareName": "Software Name",
+        "licenses": "Number of License",
+        "renewalDate": "Renewal Due Date"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itswsub-001",
+          "type": "table",
+          "title": "Software Subscriptions",
+          "columns": [
+            "softwareName",
+            "licenses",
+            "renewalDate"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "Subscriptions tab",
+          "requiredFields": [
+            "softwareName",
+            "renewalDate"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-network-downtime",
+      "dept": "IT",
+      "module": "it_network_downtime",
+      "label": "Network Disruption & Downtime",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "C:F",
+      "headerRow": 99,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "reason": "Reasons",
+        "date": "Date",
+        "time": "Time",
+        "duration": "Duration"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itnet-001",
+          "type": "kpi",
+          "label": "Total Network Downtime (min)",
+          "field": "duration",
+          "agg": "sum",
+          "format": "number",
+          "color": "red",
+          "pages": [
+            "it"
+          ]
+        },
+        {
+          "id": "viz-itnet-002",
+          "type": "table",
+          "title": "Network Disruption & Internet Down Time",
+          "columns": [
+            "reason",
+            "date",
+            "time",
+            "duration"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "Network Downtime tab",
+          "requiredFields": [
+            "reason",
+            "date",
+            "duration"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-emr-downtime",
+      "dept": "IT",
+      "module": "it_emr_downtime",
+      "label": "EMR Downtime",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "C:F",
+      "headerRow": 127,
+      "periodSource": "dateColumn",
+      "fillDown": [],
+      "columnMap": {
+        "reason": "Reasons",
+        "date": "Date",
+        "time": "Time"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itemr-001",
+          "type": "kpi",
+          "label": "Total EMR Downtime (min)",
+          "field": "duration",
+          "agg": "sum",
+          "format": "number",
+          "color": "red",
+          "pages": [
+            "it"
+          ]
+        },
+        {
+          "id": "viz-itemr-002",
+          "type": "table",
+          "title": "EMR Downtime",
+          "columns": [
+            "reason",
+            "date",
+            "time",
+            "duration"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "EMR Downtime tab",
+          "requiredFields": [
+            "reason",
+            "date",
+            "duration"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "it-software-projects",
+      "dept": "IT",
+      "module": "it_software_projects",
+      "label": "Software Projects",
+      "sheetId": "1qxpKUWrtB4og5SMAiAP5k6yPN_xab3Y3KTfOLNB5rFk",
+      "tabMode": "multi",
+      "tabs": [
+        {
+          "name": "JANUARY 2026",
+          "key": "2026-01"
+        },
+        {
+          "name": "FEBRUARY 2026",
+          "key": "2026-02"
+        },
+        {
+          "name": "MARCH 2026",
+          "key": "2026-03"
+        },
+        {
+          "name": "APRIL 2026",
+          "key": "2026-04"
+        },
+        {
+          "name": "MAY 2026",
+          "key": "2026-05"
+        },
+        {
+          "name": "JUNE 2026",
+          "key": "2026-06"
+        },
+        {
+          "name": "JULY 2026",
+          "key": "2026-07"
+        },
+        {
+          "name": "AUGUST 2026",
+          "key": "2026-08"
+        }
+      ],
+      "range": "C:F",
+      "headerRow": 114,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "project": "Software Project",
+        "issue": "Issue",
+        "description": "Description",
+        "resolution": "Possible Resolution"
+      },
+      "visualizations": [
+        {
+          "id": "viz-itproj-001",
+          "type": "table",
+          "title": "Software Projects",
+          "columns": [
+            "project",
+            "issue",
+            "description",
+            "resolution"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "it"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "it",
+          "section": "Projects tab",
+          "requiredFields": [
+            "project",
+            "issue"
+          ]
+        }
+      ],
+      "tabName": ""
+    },
+    {
+      "id": "hr-monthly-summary",
+      "dept": "HR",
+      "module": "hr_monthly_summary",
+      "label": "Monthly Summary",
+      "sheetId": "",
+      "tabName": "📊 Monthly Summary",
+      "tabMode": "single",
+      "range": "A2:H60",
+      "headerRow": 2,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "KPI / METRIC",
+        "jan": "JAN"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrms-001",
+          "type": "table",
+          "title": "Monthly Summary — All HR Officers",
+          "columns": [
+            "metric",
+            "jan"
+          ],
+          "defaultLimit": 60,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "Overview tab",
+          "requiredFields": [
+            "metric",
+            "jan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hr-admin-ops",
+      "dept": "HR",
+      "module": "hr_admin_ops",
+      "label": "HR Admin & Ops",
+      "sheetId": "",
+      "tabName": "📁 HR Admin & Ops",
+      "tabMode": "single",
+      "range": "A2:H48",
+      "headerRow": 2,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "CATEGORY / METRIC",
+        "jan": "JAN"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrao-001",
+          "type": "table",
+          "title": "HR Admin & Operations",
+          "columns": [
+            "metric",
+            "jan"
+          ],
+          "defaultLimit": 48,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "HR Admin & Ops tab",
+          "requiredFields": [
+            "metric",
+            "jan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hr-recruitment-disc",
+      "dept": "HR",
+      "module": "hr_recruitment_disc",
+      "label": "Recruitment & Disciplinary",
+      "sheetId": "1edjO5HiDKjV-gnCEOu6lwA2E3QCcHxDCJQVMCeFSCfw",
+      "tabName": "Recruitment & Disc",
+      "tabMode": "scorecard",
+      "range": "A2:B44",
+      "headerRow": 2,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "METRIC",
+        "jan": "JAN"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrrd-001",
+          "type": "table",
+          "title": "Recruitment, Onboarding & Disciplinary",
+          "columns": [
+            "metric",
+            "jan"
+          ],
+          "defaultLimit": 43,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "Recruitment & Disciplinary tab",
+          "requiredFields": [
+            "metric",
+            "jan"
+          ]
+        }
+      ],
+      "scorecard": {
+        "dataStartOffset": 2,
+        "colMap": {
+          "measure": "A"
+        },
+        "periodCols": {
+          "B": {
+            "key": "2026-01",
+            "label": "JAN"
+          }
+        },
+        "compositeOverrides": []
+      }
+    },
+    {
+      "id": "hr-ld-engagement",
+      "dept": "HR",
+      "module": "hr_ld_engagement",
+      "label": "L&D & Engagement",
+      "sheetId": "1edjO5HiDKjV-gnCEOu6lwA2E3QCcHxDCJQVMCeFSCfw",
+      "tabName": "L&D & Engagement",
+      "tabMode": "scorecard",
+      "range": "A2:H30",
+      "headerRow": 2,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "METRIC",
+        "jan": "JAN",
+        "feb": "FEB",
+        "mar": "MAR",
+        "apr": "APR",
+        "may": "MAY",
+        "jun": "JUN",
+        "jul": "JUL*"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrld-001",
+          "type": "table",
+          "title": "Learning & Development, Performance & Engagement",
+          "columns": [
+            "metric",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "jul"
+          ],
+          "defaultLimit": 30,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "L&D & Engagement tab",
+          "requiredFields": [
+            "metric",
+            "jan"
+          ]
+        }
+      ],
+      "scorecard": {
+        "dataStartOffset": 2,
+        "colMap": {
+          "measure": "A"
+        },
+        "periodCols": {
+          "B": {
+            "key": "2026-01",
+            "label": "JAN"
+          },
+          "C": {
+            "key": "2026-02",
+            "label": "FEB"
+          },
+          "D": {
+            "key": "2026-03",
+            "label": "MAR"
+          },
+          "E": {
+            "key": "2026-04",
+            "label": "APR"
+          },
+          "F": {
+            "key": "2026-05",
+            "label": "MAY"
+          },
+          "G": {
+            "key": "2026-06",
+            "label": "JUN"
+          },
+          "H": {
+            "key": "2026-07",
+            "label": "JUL*"
+          }
+        },
+        "compositeOverrides": []
+      }
+    },
+    {
+      "id": "hr-ceo-integrated",
+      "dept": "HR",
+      "module": "hr_ceo_integrated",
+      "label": "CEO Integrated Report",
+      "sheetId": "1edjO5HiDKjV-gnCEOu6lwA2E3QCcHxDCJQVMCeFSCfw",
+      "tabName": "CEO Integrated",
+      "tabMode": "scorecard",
+      "range": "A2:H43",
+      "headerRow": 2,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "METRIC",
+        "jan": "JAN",
+        "feb": "FEB",
+        "mar": "MAR",
+        "apr": "APR",
+        "may": "MAY",
+        "jun": "JUN",
+        "jul": "JUL*"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrceo-001",
+          "type": "table",
+          "title": "CEO Integrated Report (reference — some cells combine multiple figures as text)",
+          "columns": [
+            "metric",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "jul"
+          ],
+          "defaultLimit": 43,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "CEO Integrated tab",
+          "requiredFields": [
+            "metric",
+            "jan"
+          ]
+        }
+      ],
+      "scorecard": {
+        "dataStartOffset": 2,
+        "colMap": {
+          "measure": "A"
+        },
+        "periodCols": {
+          "B": {
+            "key": "2026-01",
+            "label": "JAN"
+          },
+          "C": {
+            "key": "2026-02",
+            "label": "FEB"
+          },
+          "D": {
+            "key": "2026-03",
+            "label": "MAR"
+          },
+          "E": {
+            "key": "2026-04",
+            "label": "APR"
+          },
+          "F": {
+            "key": "2026-05",
+            "label": "MAY"
+          },
+          "G": {
+            "key": "2026-06",
+            "label": "JUN"
+          },
+          "H": {
+            "key": "2026-07",
+            "label": "JUL*"
+          }
+        },
+        "compositeOverrides": []
+      }
+    },
+    {
+      "id": "hr-specialist-clinic",
+      "dept": "HR",
+      "module": "hr_specialist_clinic",
+      "label": "Specialist Clinic",
+      "sheetId": "",
+      "tabName": "📊 Specialist Clinic",
+      "tabMode": "single",
+      "range": "A3:H20",
+      "headerRow": 3,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "specialty": "SPECIALTY",
+        "jan": "JAN",
+        "feb": "FEB",
+        "mar": "MAR",
+        "apr": "APR",
+        "may": "MAY",
+        "jun": "JUN",
+        "h1Total": "H1 TOTAL"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrsc-001",
+          "type": "bar",
+          "title": "H1 Total by Specialty",
+          "xField": "specialty",
+          "yField": "h1Total",
+          "limit": 15,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "format": "number",
+          "pages": [
+            "hr"
+          ]
+        },
+        {
+          "id": "viz-hrsc-002",
+          "type": "table",
+          "title": "Specialist Clinic Activity",
+          "columns": [
+            "specialty",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "h1Total"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "Specialist Clinic tab",
+          "requiredFields": [
+            "specialty",
+            "h1Total"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hr-leave-analytics",
+      "dept": "HR",
+      "module": "hr_leave_analytics",
+      "label": "Leave Analytics",
+      "sheetId": "",
+      "tabName": "📊 Leave Analytics",
+      "tabMode": "single",
+      "range": "A3:H20",
+      "headerRow": 3,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "leaveType": "LEAVE TYPE",
+        "jan": "JAN",
+        "feb": "FEB",
+        "mar": "MAR",
+        "apr": "APR",
+        "may": "MAY",
+        "jun": "JUN",
+        "jul": "JUL*"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrla-001",
+          "type": "table",
+          "title": "Leave Analytics",
+          "columns": [
+            "leaveType",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "jul"
+          ],
+          "defaultLimit": 20,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "Leave Analytics tab",
+          "requiredFields": [
+            "leaveType",
+            "jan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hr-board-metrics",
+      "dept": "HR",
+      "module": "hr_board_metrics",
+      "label": "Board Metrics",
+      "sheetId": "",
+      "tabName": "📊 Board Metrics",
+      "tabMode": "single",
+      "range": "A3:D42",
+      "headerRow": 3,
+      "periodSource": "tabName",
+      "fillDown": [],
+      "columnMap": {
+        "metric": "METRIC",
+        "status": "STATUS",
+        "h1Value": "H1 VALUE",
+        "note": "EXECUTIVE NOTE"
+      },
+      "visualizations": [
+        {
+          "id": "viz-hrbm-001",
+          "type": "table",
+          "title": "Board Metrics",
+          "columns": [
+            "metric",
+            "status",
+            "h1Value",
+            "note"
+          ],
+          "defaultLimit": 40,
+          "pages": [
+            "hr"
+          ]
+        }
+      ],
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "Board Metrics tab",
+          "requiredFields": [
+            "metric",
+            "status"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conn-1787240870316",
+      "label": "HR Workforce",
+      "dept": "HR",
+      "module": "hr_workforce",
+      "sheetId": "1edjO5HiDKjV-gnCEOu6lwA2E3QCcHxDCJQVMCeFSCfw",
+      "tabName": "Monthly Summary",
+      "tabMode": "scorecard",
+      "range": "A2:B58",
+      "scorecard": {
+        "dataStartOffset": 2,
+        "colMap": {
+          "measure": "A"
+        },
+        "periodCols": {
+          "B": {
+            "key": "2026-01",
+            "label": "JAN"
+          }
+        },
+        "compositeOverrides": []
+      },
+      "feeds": [
+        {
+          "page": "hr",
+          "section": "",
+          "requiredFields": []
+        }
+      ],
+      "visualizations": [
+        {
+          "id": "viz-1787241333441",
+          "type": "table",
+          "label": "",
+          "title": "Workforce",
+          "field": "",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "yFields": [],
+          "catField": "",
+          "valField": "",
+          "pages": [
+            "hr"
+          ],
+          "columns": [
+            "metric",
+            "value",
+            "_period",
+            "_monthLabel"
+          ],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "filters": []
+        },
+        {
+          "id": "viz-1787304046929",
+          "type": "bar",
+          "label": "",
+          "title": "Diversity in staffs",
+          "field": "",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "measure",
+          "yField": "value",
+          "yFields": [],
+          "catField": "",
+          "valField": "",
+          "pages": [
+            "hr"
+          ],
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "vertical",
+          "targetLine": {
+            "value": 5,
+            "label": "Target"
+          },
+          "defaultLimit": 20,
+          "filters": [
+            {
+              "field": "metric",
+              "values": [
+                "Diversity — Hausa",
+                "Diversity — Igbo",
+                "Diversity — Non-Nigerian",
+                "Diversity — Yoruba"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "viz-1787327797529",
+          "type": "table",
+          "label": "",
+          "title": "Recruitment (Henry Omoregie)",
+          "field": "",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "yFields": [],
+          "catField": "",
+          "valField": "",
+          "pages": [
+            "hr"
+          ],
+          "columns": [
+            "metric",
+            "value"
+          ],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20,
+          "filters": [
+            {
+              "field": "metric",
+              "values": [
+                "Applications Received (month)",
+                "Interviews Conducted (month)",
+                "Offers Made (month)",
+                "Roles Filled (month)",
+                "New Hires Onboarded (month)",
+                "Avg Time to Hire (days)",
+                "Resignations (month)",
+                "Abscondments (month)",
+                "Exit Interviews Conducted",
+                "Retention Rate (month end)",
+                "HR Clinic Sessions Held",
+                "HR Clinic Attendance"
+              ]
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-08-20T15:49:43.408Z"
+    },
+    {
+      "0": {
+        "dept": "Finance",
+        "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+        "tabMode": "multi",
+        "tabName": "",
+        "tabs": [
+          {
+            "name": "2025 Report",
+            "key": "2025 Report"
+          },
+          {
+            "name": "2026 Report",
+            "key": "2026 Report"
+          }
+        ],
+        "periodSource": "dateColumn",
+        "visualizations": [],
+        "id": "conn-1787319927470-finance-yearly-revenue",
+        "module": "finance_yearly_revenue",
+        "label": "Finance Yearly Revenue",
+        "headerRow": 5,
+        "range": "B5:P46",
+        "columnMap": {
+          "S/N": "S/N",
+          "REVENUE STREAM": "REVENUE STREAM",
+          "JAN": "JAN",
+          "FEB": "FEB",
+          "MAR": "MAR",
+          "APR": "APR",
+          "MAY": "MAY",
+          "JUN": "JUN",
+          "JUL": "JUL",
+          "AUG": "AUG",
+          "SEP": "SEP",
+          "OCT": "OCT",
+          "NOV": "NOV",
+          "DEC": "DEC",
+          "TOTAL": "TOTAL"
+        },
+        "feeds": [
+          {
+            "page": "revenue",
+            "section": "Finance Yearly Revenue",
+            "requiredFields": []
+          }
+        ]
+      },
+      "id": "conn-1787320506575",
+      "visualizations": [
+        {
+          "id": "viz-1787324708820",
+          "type": "table",
+          "label": "",
+          "title": "2025 Finance Report",
+          "field": "",
+          "agg": "sum",
+          "format": "number",
+          "color": "blue",
+          "xField": "",
+          "yField": "",
+          "yFields": [],
+          "catField": "",
+          "valField": "",
+          "pages": [
+            "revenue"
+          ],
+          "columns": [],
+          "limit": 10,
+          "sort": "desc",
+          "orientation": "horizontal",
+          "targetLine": null,
+          "defaultLimit": 20
+        }
+      ],
+      "createdAt": "2026-08-21T13:55:06.575Z",
+      "label": "Finance Yearly Revenue",
+      "dept": "Finance",
+      "module": "revenue_ledger",
+      "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+      "range": "B5:P46",
+      "headerRow": 5,
+      "periodSource": "tabName",
+      "tabMode": "single",
+      "tabName": "2025 Report",
+      "tabs": [],
+      "feeds": [
+        {
+          "page": "revenue",
+          "section": "",
+          "requiredFields": []
+        }
+      ],
+      "columnMap": {
+        "S/N": "S/N",
+        "REVENUE STREAM": "REVENUE STREAM",
+        "JAN": "JAN",
+        "FEB": "FEB",
+        "MAR": "MAR",
+        "APR": "APR",
+        "MAY": "MAY",
+        "JUN": "JUN",
+        "JUL": "JUL",
+        "AUG": "AUG",
+        "SEP": "SEP",
+        "OCT": "OCT",
+        "NOV": "NOV",
+        "DEC": "DEC",
+        "TOTAL": "TOTAL"
+      }
+    },
+    {
+      "0": {
+        "dept": "Finance",
+        "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+        "tabMode": "single",
+        "tabName": "2025 Report",
+        "tabs": [],
+        "periodSource": "dateColumn",
+        "visualizations": [],
+        "id": "conn-1787563803175-revenue-ledger",
+        "module": "revenue_ledger",
+        "label": "2025 Revenue",
+        "headerRow": 5,
+        "range": "B5:P46",
+        "columnMap": {
+          "S/N": "S/N",
+          "REVENUE STREAM": "REVENUE STREAM",
+          "JAN": "JAN",
+          "FEB": "FEB",
+          "MAR": "MAR",
+          "APR": "APR",
+          "MAY": "MAY",
+          "JUN": "JUN",
+          "JUL": "JUL",
+          "AUG": "AUG",
+          "SEP": "SEP",
+          "OCT": "OCT",
+          "NOV": "NOV",
+          "DEC": "DEC",
+          "TOTAL": "TOTAL"
+        },
+        "feeds": [
+          {
+            "page": "expenses",
+            "section": "2025 Revenue",
+            "requiredFields": []
+          }
+        ]
+      },
+      "1": {
+        "dept": "Finance",
+        "sheetId": "1T2HAvcbY67-R7RzsqPikMmR2CXnWCAt-tm3vakVQL38",
+        "tabMode": "single",
+        "tabName": "2025 Report",
+        "tabs": [],
+        "periodSource": "dateColumn",
+        "visualizations": [],
+        "id": "conn-1787563803175-revenue-ledger",
+        "module": "revenue_ledger",
+        "label": "2025 Expenses",
+        "headerRow": 49,
+        "range": "B49:P126",
+        "columnMap": {
+          "S/N": "S/N",
+          "EXPENSE CATEGORY": "EXPENSE CATEGORY",
+          "JAN": "JAN",
+          "FEB": "FEB",
+          "MAR": "MAR",
+          "APR": "APR",
+          "MAY": "MAY",
+          "JUN": "JUN",
+          "JUL": "JUL",
+          "AUG": "AUG",
+          "SEP": "SEP",
+          "OCT": "OCT",
+          "NOV": "NOV",
+          "DEC": "DEC",
+          "TOTAL": "TOTAL"
+        },
+        "feeds": [
+          {
+            "page": "expenses",
+            "section": "2025 Expenses",
+            "requiredFields": []
+          }
+        ]
+      },
+      "id": "conn-1787564127372",
+      "visualizations": [],
+      "createdAt": "2026-08-24T09:35:27.372Z"
     }
   ],
   "meta": {
-    "version": 1,
-    "updatedAt": "2025-11-25T00:00:00.000Z",
+    "version": 99,
+    "updatedAt": "2026-08-24T09:35:27.372Z",
     "updatedBy": "system"
   }
 }

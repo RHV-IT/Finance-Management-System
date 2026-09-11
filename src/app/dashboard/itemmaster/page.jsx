@@ -91,7 +91,7 @@ export default function ItemMasterPage() {
   const hasDrugCols = filtered.some(i => i.cat === 'Drug' || i.cat === 'Fluid');
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>🗂 Item Master</h2>
@@ -273,6 +273,6 @@ export default function ItemMasterPage() {
           </div>
         ))}
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

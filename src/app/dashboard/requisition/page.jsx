@@ -708,7 +708,7 @@ export default function RequisitionPage() {
   }
  
   return (
-    <DashboardLayout>
+    <div>
       {showNew  && <NewRequisitionModal onClose={()=>setShowNew(false)} onSubmit={handleNewReq} />}
       {trackReq && <TrackingPanel req={trackReq} onClose={()=>setTrackReq(null)} />}
  
@@ -1061,6 +1061,6 @@ export default function RequisitionPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

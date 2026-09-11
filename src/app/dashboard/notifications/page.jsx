@@ -121,7 +121,7 @@ export default function NotificationsPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <div>
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className={styles.pageHeader}>
         <div>
@@ -334,6 +334,6 @@ export default function NotificationsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

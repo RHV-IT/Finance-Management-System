@@ -400,7 +400,7 @@ export default function ApprovalsPage() {
   ];
  
   return (
-    <DashboardLayout>
+    <div>
  
       {detailReq && (
         <DetailPanel
@@ -611,6 +611,6 @@ export default function ApprovalsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

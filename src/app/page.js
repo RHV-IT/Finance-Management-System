@@ -1,12 +1,11 @@
-import Image from "next/image";
-import Topbar from "./components/Topbar";
-import Sidebar from "./components/Sidebar";
+// app/page.jsx
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  return (
-    <main>
-      <Topbar/>
-      <Sidebar/>
-    </main>
-  );
+  const router = useRouter();
+  useEffect(() => { router.replace('/login'); }, [router]);
+  return null;
 }

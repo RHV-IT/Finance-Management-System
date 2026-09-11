@@ -1,59 +1,162 @@
 'use client';
  
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
-import { StreamsBarChart, RevenuePieChart } from '../../components/Charts';
-import { STREAMS, COLORS, fmt, fmtM } from '../lib/data';
+import PageRenderer from '../../components/PageRenderer';
+import { useSheetData } from '../lib/useConfig';
+import { useConfig } from '../lib/ConfigProvider';
+import { fmt } from '../lib/data';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
  
-const PAYER_DATA = [
-  { name: 'Cash',          value: 58 },
-  { name: 'HMO/Insurance', value: 22 },
-  { name: 'Corporate',     value: 12 },
-  { name: 'Mission',       value:  5 },
-  { name: 'Govt/NHIS',     value:  3 },
-];
-const PAYER_COLORS = ['#1B4F72','#117A65','#6C3483','#CA6F1E','#888'];
+const n = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
+ 
+// ─── Descriptive error / loading states (same pattern as Weekly/Inventory) ──
+ 
+function SheetError({ label, error, onRefetch }) {
+  const notConnected = error?.includes('not connected') || error?.includes('Sheet ID') || error?.includes('No connection');
+  return (
+    <div style={{ background: notConnected ? '#FFF9E6' : '#FEECEC', border: `1.5px solid ${notConnected ? '#F4D03F' : '#F1948A'}`, borderRadius: 10, padding: '24px', textAlign: 'center' }}>
+      <div style={{ fontSize: 28, marginBottom: 10 }}>{notConnected ? '🔗' : '⚠️'}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy)', marginBottom: 8 }}>
+        {label}: {notConnected ? 'Not connected yet' : 'Failed to load'}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>{error}</div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <a href="/dashboard/settings" style={{ padding: '8px 18px', background: 'var(--navy)', color: '#fff', borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>⚙ Go to Settings</a>
+        {onRefetch && !notConnected && (
+          <button onClick={onRefetch} style={{ padding: '8px 18px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>↻ Retry</button>
+        )}
+      </div>
+    </div>
+  );
+}
+ 
+function Loading({ message }) {
+  return (
+    <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 12 }}>
+      ⏳ {message}
+    </div>
+  );
+}
  
 export default function RevenuePage() {
-  const [sort, setSort] = useState('hi');
+  const [sort,   setSort]   = useState('hi');
   const [search, setSearch] = useState('');
-  const [view, setView] = useState('val'); // 'val' | 'pct'
+  const [view,   setView]   = useState('val'); // 'val' | 'pct'
  
-  const total = STREAMS.reduce((s, x) => s + x.ytd, 0);
+  const { getByModule, loading: configLoading, error: configError, reload } = useConfig();
+  const ledgerConn = getByModule('revenue_ledger');
+  console.log('ledgerConn:', ledgerConn);
+  const { rows, loading: rowsLoading, error: rowsError, refetch } = useSheetData(ledgerConn);
  
-  const sorted = useMemo(() => {
-    let arr = STREAMS.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
-    if (sort === 'hi') arr = [...arr].sort((a, b) => b.ytd - a.ytd);
-    else if (sort === 'lo') arr = [...arr].sort((a, b) => a.ytd - b.ytd);
-    else arr = [...arr].sort((a, b) => a.name.localeCompare(b.name));
-    return arr;
-  }, [sort, search]);
+  // ── Guard states ──
  
-  const barData = sorted.slice(0, 10).map(s => ({
-    name: s.name.length > 22 ? s.name.slice(0, 22) + '…' : s.name,
-    ytdM: fmtM(s.ytd),
+  if (configLoading) {
+    return <div><Loading message="Loading sheet configuration from Google Drive…" /></div>;
+  }
+ 
+  if (configError) {
+    return (
+      <div>
+        <SheetError label="Sheet configuration" error={`Could not load the connections manifest: ${configError}`} onRefetch={reload} />
+      </div>
+    );
+  }
+ 
+  if (!ledgerConn) {
+    return (
+      <div>
+        <SheetError
+          label="Revenue Ledger"
+          error={`No connection with module "revenue_ledger" is configured. Add one in Settings, and make sure its feeds[] (or a visualization's pages[]) includes "revenue".`}
+        />
+      </div>
+    );
+  }
+ 
+  if (rowsLoading) {
+    return <div><Loading message={`Loading "${ledgerConn.label}" from Google Sheets…`} /></div>;
+  }
+ 
+  if (rowsError) {
+    return (
+      <div>
+        <SheetError label={ledgerConn.label} error={rowsError} onRefetch={refetch} />
+      </div>
+    );
+  }
+ 
+  if (!rows || rows.length === 0) {
+    return (
+      <div>
+        <SheetError
+          label={ledgerConn.label}
+          error={`The sheet connected fine, but the "${ledgerConn.tabName}" tab returned 0 rows. Check that data starts at header row ${ledgerConn.headerRow} and that the range "${ledgerConn.range}" covers it.`}
+          onRefetch={refetch}
+        />
+      </div>
+    );
+  }
+ 
+  // ── Real data from here — group the ledger by item to get "streams" ──
+  // (This grouping is bespoke because it needs per-item department lookup
+  // and period-over-period deltas — DynamicViz's generic bar/table renderers
+  // don't have a slot for that kind of derived comparison yet.)
+ 
+  const periods = [...new Set(rows.map(r => r._period).filter(Boolean))].sort();
+  const latestPeriod = periods[periods.length - 1];
+  const prevPeriod   = periods[periods.length - 2];
+ 
+  const streamMap = {};
+  rows.forEach(r => {
+    const item = r.item || 'Unspecified';
+    if (!streamMap[item]) {
+      streamMap[item] = { name: item, depts: new Set(), ytd: 0, latest: 0, prev: 0 };
+    }
+    const s = streamMap[item];
+    if (r.department) s.depts.add(r.department);
+    const amt = n(r.amount);
+    s.ytd += amt;
+    if (r._period === latestPeriod) s.latest += amt;
+    if (r._period === prevPeriod)   s.prev   += amt;
+  });
+ 
+  const streams = Object.values(streamMap).map(s => ({
+    ...s,
+    dept: s.depts.size === 0 ? '—' : s.depts.size === 1 ? [...s.depts][0] : 'Multiple depts',
   }));
  
-  const totalNov  = STREAMS.reduce((s, x) => s + (x.monthly[10] || 0), 0);
+  const total = streams.reduce((s, x) => s + x.ytd, 0);
+  const totalLatest = streams.reduce((s, x) => s + x.latest, 0);
+  const topStream = [...streams].sort((a, b) => b.ytd - a.ytd)[0];
+ 
+  // Plain computation, not a hook — it runs after the early returns above,
+  // so it can't be a real useMemo/useState call (that would break the Rules
+  // of Hooks by making a hook conditional).
+  let sorted = streams.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  if (sort === 'hi') sorted = [...sorted].sort((a, b) => b.ytd - a.ytd);
+  else if (sort === 'lo') sorted = [...sorted].sort((a, b) => a.ytd - b.ytd);
+  else sorted = [...sorted].sort((a, b) => a.name.localeCompare(b.name));
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>💰 Revenue Streams</h2>
-          <p className={styles.pageMeta}>YTD performance · FY 2025</p>
+          <p className={styles.pageMeta}>
+            {periods.length > 0 ? `${periods[0]} – ${latestPeriod}` : 'YTD performance'}
+          </p>
         </div>
       </div>
  
-      {/* ── KPIs ─────────────────────────────────────── */}
+      {/* ── KPIs — bespoke, needs per-item grouping the config vizs don't do ──── */}
       <div className={styles.kpiGrid}>
         <KPICard label="Total Revenue YTD" value={fmt(total)} color="green" badge="YTD" badgeType="good" />
-        <KPICard label="Revenue Streams" value={STREAMS.length} color="blue" />
-        <KPICard label="Top Stream" value={STREAMS[0].name.split(' ').slice(0,2).join(' ')} delta={fmt(STREAMS[0].ytd)} deltaType="up" color="purple" />
-        <KPICard label="Nov 2025 Revenue" value={fmt(totalNov)} color="amber" />
+        <KPICard label="Revenue Streams" value={streams.length} color="blue" />
+        <KPICard label="Top Stream" value={topStream ? topStream.name : '—'} delta={topStream ? fmt(topStream.ytd) : ''} deltaType="up" color="purple" />
+        <KPICard label={`${latestPeriod || 'Latest'} Revenue`} value={fmt(totalLatest)} color="amber" />
       </div>
  
       {/* ── Filter toolbar ───────────────────────────── */}
@@ -98,19 +201,17 @@ export default function RevenuePage() {
         />
       </div>
  
-      {/* ── Charts ───────────────────────────────────── */}
+      {/* ── Charts — config-driven via PageRenderer ──────────────────────── */}
+      {/* Reads viz-revl-004 (Top Revenue Streams bar) + viz-revl-005 (Payment
+          Method Mix pie) from the revenue_ledger connection. Both now group
+          and sum correctly across repeated items/payment methods since the
+          VizBar fix. */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
-        <div className={styles.card}>
-          <div className={styles.cardTitle}>Top Revenue Streams YTD (₦M)</div>
-          <StreamsBarChart data={barData} colors={COLORS} />
-        </div>
-        <div className={styles.card}>
-          <div className={styles.cardTitle}>Payer Mix</div>
-          <RevenuePieChart data={PAYER_DATA} colors={PAYER_COLORS} />
-        </div>
+        <PageRenderer page="revenue" module="revenue_ledger" only={['bar']} />
+        <PageRenderer page="revenue" module="revenue_ledger" only={['pie']} />
       </div>
  
-      {/* ── Table ─────────────────────────────────────── */}
+      {/* ── Table — bespoke per-stream detail (search/sort/%-toggle/MoM) ──── */}
       <div className={tableStyles.tableBox}>
         <div className={tableStyles.tableTitle}>Revenue Streams Detail</div>
         <table className={tableStyles.table}>
@@ -121,17 +222,15 @@ export default function RevenuePage() {
               <th>Department</th>
               <th>YTD Value</th>
               <th>% Share</th>
-              <th>Nov</th>
-              <th>MoM Δ</th>
+              <th>{latestPeriod || 'Latest'}</th>
+              <th>Period Δ</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((s, i) => {
               const pct = total > 0 ? (s.ytd / total * 100).toFixed(1) : 0;
-              const nov = s.monthly[10] || 0;
-              const oct = s.monthly[9] || 0;
-              const mom = oct > 0 ? ((nov - oct) / oct * 100).toFixed(1) : null;
+              const mom = s.prev > 0 ? ((s.latest - s.prev) / s.prev * 100).toFixed(1) : null;
               const display = view === 'pct' ? `${pct}%` : fmt(s.ytd);
               return (
                 <tr key={s.name}>
@@ -145,7 +244,7 @@ export default function RevenuePage() {
                       <span style={{ fontSize: 10 }}>{pct}%</span>
                     </div>
                   </td>
-                  <td>{fmt(nov)}</td>
+                  <td>{fmt(s.latest)}</td>
                   <td style={{ color: mom > 0 ? 'var(--teal)' : mom < 0 ? 'var(--red)' : 'var(--muted)', fontWeight: 600 }}>
                     {mom !== null ? `${mom > 0 ? '+' : ''}${mom}%` : '—'}
                   </td>
@@ -163,13 +262,17 @@ export default function RevenuePage() {
               <td colSpan={3} style={{ fontWeight: 700 }}>TOTAL</td>
               <td style={{ fontWeight: 700 }}>{fmt(total)}</td>
               <td style={{ fontWeight: 700 }}>100%</td>
-              <td style={{ fontWeight: 700 }}>{fmt(STREAMS.reduce((s, x) => s + (x.monthly[10] || 0), 0))}</td>
+              <td style={{ fontWeight: 700 }}>{fmt(totalLatest)}</td>
               <td>—</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
-    </DashboardLayout>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+        <PageRenderer page="revenue" module="revenue_ledger" only={['table']} />
+      </div>
+    </div>
   );
 }

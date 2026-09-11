@@ -101,7 +101,7 @@ export default function ProcSearchPage() {
   };
  
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>🔍 Procurement Search</h2>
@@ -308,6 +308,6 @@ export default function ProcSearchPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

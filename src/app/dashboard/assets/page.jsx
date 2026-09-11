@@ -57,7 +57,7 @@ export default function AssetsPage() {
   const deptBar = Object.entries(deptMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([dept,val]) => ({ dept:dept.split(' ')[0], val:+(val/1e6).toFixed(2) }));
 
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>🏗 Asset Register</h2>
@@ -170,6 +170,6 @@ export default function AssetsPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

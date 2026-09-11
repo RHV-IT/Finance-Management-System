@@ -10,7 +10,17 @@
  * - Sheet just needs to be shared with the service account
  */
  
+import { meltScorecard, colLetterToIndex } from './scorecardParser';
+ 
 // ─── Internal: call our server route ─────────────────────────
+
+function parseRangeStartRow(range) {
+    if (!range) return 1;
+    // Matches "B5:P45", "A1:Z", "Sheet1!B5:P45" — pulls the row number
+    // attached to the FIRST cell reference, if any.
+    const match = range.match(/(?:![A-Z]+|^[A-Z]+)(\d+)/);
+    return match ? parseInt(match[1], 10) : 1; // no digits = whole column = starts at row 1
+}
  
 async function fetchTabValues(sheetId, tabName, range = 'A:Z') {
     const res = await fetch('/api/sheets/fetch', {
@@ -63,8 +73,26 @@ export async function fetchSheetTab(connection, _apiKey = null, tabOverride = nu
  
     try {
         // Fetch via server — service account handles auth
-        const raw     = await fetchTabValues(sheetId, tabName, range);
-        const headers = (raw[headerRow - 1] || []).map(h => String(h).trim());
+        const raw = await fetchTabValues(sheetId, tabName, range);
+ 
+        // headerRow is always the ABSOLUTE row number as seen in the actual
+        // sheet (what you'd count if you scrolled to it) — never an index
+        // into the fetched array. But `raw` only contains whatever rows
+        // Range actually asked for: if Range is "B5:P45", raw[0] is sheet
+        // row 5, not row 1. So we have to work out where Range starts and
+        // offset headerRow against THAT, not against 0.
+        const rangeStartRow  = parseRangeStartRow(range);
+        const headerIdxInRaw = headerRow - rangeStartRow; // 0-based index into `raw`
+ 
+        if (headerIdxInRaw < 0) {
+            return {
+                rows:     [],
+                warnings: [`Header Row (${headerRow}) is above where Range "${range}" starts (row ${rangeStartRow}). Header Row must fall inside the fetched Range.`],
+                meta:     {},
+            };
+        }
+ 
+        const headers = (raw[headerIdxInRaw] || []).map(h => String(h).trim());
  
         if (!headers.length) {
             return {
@@ -74,7 +102,7 @@ export async function fetchSheetTab(connection, _apiKey = null, tabOverride = nu
             };
         }
  
-        const { mappedRows, unmappedFields } = applyColumnMap(headers, raw.slice(headerRow), columnMap);
+        const { mappedRows, unmappedFields } = applyColumnMap(headers, raw.slice(headerIdxInRaw + 1), columnMap);
  
         // Fill down merged cells
         const filledRows = fillDownMerged(mappedRows, fillDown);
@@ -185,14 +213,192 @@ export async function fetchAllTabs(connection, _apiKey = null) {
     }
 }
  
+// ─── Fetch a KPI scorecard tab (wide → long) ──────────────────
+//
+// For sheets shaped like a report card rather than a record register:
+// one row per KPI, one column per period. See lib/scorecardParser.js for
+// the melt/decode logic. Config lives under connection.scorecard:
+//
+//   {
+//     "tabMode": "scorecard",
+//     "range": "A6:Q57",
+//     "scorecard": {
+//       "dataStartOffset": 2,          // rows to skip within `range` before real data starts
+//       "colMap": { "sNo":"A","category":"B","kpiNo":"C","measure":"D","unit":"E" },
+//       "periodCols": { "F": {"key":"2026-01","label":"JAN"}, ... },   // key = literal period
+//       "compositeOverrides": [
+//         { "when": {"category":"...","kpiNo":"1"}, "labels":["Pharmacist","Pharm. Tech.","Porter","Admin"], "delimiter":":" },
+//         { "when": {"category":"...","kpiNo":"3"}, "labels":["Highest","Lowest"], "delimiter":"---" }
+//       ]
+//     }
+//   }
+ 
+export async function fetchScorecardTab(connection, _apiKey = null) {
+    const {
+        sheetId,
+        tabName,
+        range     = 'A6:Q60',
+        module:   _module,
+        id:       _connectionId,
+        dept:     _dept,
+        scorecard = {},
+    } = connection;
+ 
+    if (!sheetId || sheetId.includes('YOUR_')) {
+        return { rows: [], warnings: [`Sheet not connected for "${connection.label || _module}".`], meta: {} };
+    }
+    if (!tabName) {
+        return { rows: [], warnings: [`No tab name set for "${connection.label || _module}".`], meta: {} };
+    }
+ 
+    try {
+        const raw = await fetchTabValues(sheetId, tabName, range);
+ 
+        if (!raw.length) {
+            return { rows: [], warnings: [`Tab "${tabName}" returned no rows for range "${range}".`], meta: {} };
+        }
+ 
+        const { rows: melted, warnings } = meltScorecard(raw, {
+            startRow:           scorecard.dataStartOffset ?? 2,
+            colMap:             scorecard.colMap,
+            periodCols:         scorecard.periodCols || scorecard.monthCols,
+            compositeOverrides: scorecard.compositeOverrides || [],
+        });
+ 
+        const rows = melted.map(r => ({
+            ...r,
+            _key:          tabName,
+            _tab:          tabName,
+            _module:       _module,
+            _connectionId: _connectionId,
+            _dept:         _dept,
+        }));
+ 
+        return {
+            rows,
+            warnings,
+            meta: { sheetId, tabName, rowCount: rows.length, fetchedAt: new Date().toISOString() },
+        };
+ 
+    } catch (err) {
+        return { rows: [], warnings: [err.message], meta: {} };
+    }
+}
+ 
+// ─── Fetch a KPI scorecard spread across multiple tabs ────────
+//
+// For "one tab per month" scorecards (e.g. RHV's 2025 architecture, where
+// each month is its own tab with a weekly breakdown: month-total + WK1–4).
+// Each entry in connection.tabs describes one tab and its own periodCols
+// (since the columns represent different weeks/labels per tab); colMap and
+// compositeOverrides are shared from connection.scorecard unless a tab
+// overrides them.
+//
+//   {
+//     "tabMode": "scorecard_multi",
+//     "range": "A6:N50",
+//     "scorecard": {
+//       "dataStartOffset": 2,
+//       "colMap": { "sNo":"A","category":"B","kpiNo":"C","measure":"D","unit":"E" },
+//       "compositeOverrides": [ ... ]
+//     },
+//     "tabs": [
+//       {
+//         "name": "January",
+//         "periodCols": {
+//           "F": {"key":"2025-01",    "label":"JAN (Month Total)"},
+//           "G": {"key":"2025-01-W1", "label":"1st–8th"},
+//           "H": {"key":"2025-01-W2", "label":"9th–15th"},
+//           "I": {"key":"2025-01-W3", "label":"16th–22nd"},
+//           "J": {"key":"2025-01-W4", "label":"23rd–31st"}
+//         }
+//       },
+//       { "name": "February", "periodCols": { ... } }
+//     ]
+//   }
+ 
+export async function fetchScorecardMultiTab(connection, _apiKey = null) {
+    const {
+        sheetId,
+        range     = 'A6:N60',
+        module:   _module,
+        id:       _connectionId,
+        dept:     _dept,
+        scorecard = {},
+        tabs      = [],
+    } = connection;
+ 
+    if (!sheetId || sheetId.includes('YOUR_')) {
+        return { rows: [], warnings: [`Sheet not connected for "${connection.label || _module}".`], meta: {} };
+    }
+    if (!tabs.length) {
+        return { rows: [], warnings: ['No tabs configured for this scorecard. Add tabs in Settings.'], meta: {} };
+    }
+ 
+    const results = await Promise.allSettled(
+        tabs.map(async tab => {
+            const raw = await fetchTabValues(sheetId, tab.name, tab.range || range);
+            if (!raw.length) throw new Error(`Tab "${tab.name}" returned no rows for range "${tab.range || range}".`);
+ 
+            const { rows: melted, warnings } = meltScorecard(raw, {
+                startRow:           tab.dataStartOffset ?? scorecard.dataStartOffset ?? 2,
+                colMap:             tab.colMap || scorecard.colMap,
+                periodCols:         tab.periodCols || tab.monthCols,
+                compositeOverrides: tab.compositeOverrides || scorecard.compositeOverrides || [],
+            });
+ 
+            return {
+                warnings,
+                rows: melted.map(r => ({
+                    ...r,
+                    _key:          tab.name,
+                    _tab:          tab.name,
+                    _module:       _module,
+                    _connectionId: _connectionId,
+                    _dept:         _dept,
+                })),
+            };
+        })
+    );
+ 
+    const allRows     = [];
+    const allWarnings = [];
+ 
+    results.forEach((result, i) => {
+        const tab = tabs[i];
+        if (result.status === 'fulfilled') {
+            allRows.push(...result.value.rows);
+            if (result.value.warnings.length) {
+                allWarnings.push(`[${tab.name}] ${result.value.warnings.join(' ')}`);
+            }
+        } else {
+            allWarnings.push(`[${tab.name}] Failed: ${result.reason?.message}`);
+        }
+    });
+ 
+    return {
+        rows:     allRows,
+        warnings: allWarnings,
+        meta: {
+            sheetId,
+            tabMode:   'scorecard_multi',
+            tabCount:  tabs.length,
+            rowCount:  allRows.length,
+            fetchedAt: new Date().toISOString(),
+        },
+    };
+}
+ 
 // ─── Smart fetch — picks mode automatically ───────────────────
  
 export async function fetchSheet(connection, _apiKey = null) {
     const mode = connection.tabMode || 'single';
     switch (mode) {
-        case 'multi': return fetchMultiTab(connection, null);
-        case 'auto':  return fetchAllTabs(connection, null);
-        default:      return fetchSheetTab(connection, null);
+        case 'multi':           return fetchMultiTab(connection, null);
+        case 'auto':             return fetchAllTabs(connection, null);
+        case 'scorecard':        return fetchScorecardTab(connection, null);
+        case 'scorecard_multi':  return fetchScorecardMultiTab(connection, null);
+        default:                 return fetchSheetTab(connection, null);
     }
 }
  
@@ -235,6 +441,23 @@ function fillDownMerged(rows, fields = []) {
 }
  
 // ─── Column mapping ───────────────────────────────────────────
+//
+// Each entry in columnMap can be one of two things:
+//
+//   1. A plain string — matched against the sheet's actual header text,
+//      exact then fuzzy. This is the original behavior, used by every
+//      existing connection (kitchen store, IT KPI, etc.) — unchanged.
+//        "qty": "Qty On Hand"
+//
+//   2. { "col": "F" } — matched by column POSITION instead, ignoring
+//      whatever text (if any) is in that header cell. Use this when:
+//        - the column has no header at all (blank cell), or
+//        - the header text isn't stable across tabs — e.g. a "multi"
+//          connection where each monthly tab labels the same column
+//          differently ("JAN" in the January tab, "FEB" in February...).
+//          Text-matching would silently break the moment the label
+//          changes; position-matching doesn't care what the label says.
+//        "value": { "col": "F" }
  
 function applyColumnMap(headers, dataRows, columnMap) {
     const headerIndex = {};
@@ -243,7 +466,15 @@ function applyColumnMap(headers, dataRows, columnMap) {
     const fieldToIndex   = {};
     const unmappedFields = [];
  
-    Object.entries(columnMap).forEach(([ourField, theirHeader]) => {
+    Object.entries(columnMap).forEach(([ourField, spec]) => {
+        // Position-based reference — resolve directly, no header lookup at all.
+        if (spec && typeof spec === 'object' && spec.col) {
+            fieldToIndex[ourField] = colLetterToIndex(spec.col);
+            return;
+        }
+ 
+        // Text-based reference — original exact-then-fuzzy header matching.
+        const theirHeader = spec;
         const norm  = normalise(theirHeader);
         if (headerIndex[norm] !== undefined) { fieldToIndex[ourField] = headerIndex[norm]; return; }
         const fuzzy = Object.keys(headerIndex).find(h => h.includes(norm) || norm.includes(h));
@@ -306,3 +537,4 @@ function normalise(str) {
         .replace(/[\s\-_\/\(\)\.]+/g, '')
         .replace(/[₦#%]/g, '');
 }
+ 

@@ -1,21 +1,25 @@
 'use client';
- 
+
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ConnectionForm from '../../components/ConnectionForm';
+import ConnectionWizard from '../../components/ConnectionWizard';
+import HelpGuide from '../../components/HelpGuide';
 import VizForm from '../../components/VizForm';
-import { useConfig, getApiKey, saveApiKey } from '../../dashboard/lib/useConfig';
+import { getApiKey, saveApiKey, useConfig } from '../../dashboard/lib/useConfig';
+//import { useConfig } from '../lib/ConfigProvider';
 import { testSheetConnection, extractSheetId } from '../../dashboard/lib/googleSheets';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
- 
+
 // ─── Tabs ─────────────────────────────────────────────────────
 const TABS = [
   { key: 'sheets',  label: '🔗 Google Sheets'   },
+  { key: 'guide',   label: '📖 Guide'           },
   { key: 'profile', label: '🏥 Hospital Profile' },
   { key: 'pins',    label: '🔐 PINs & Roles'     },
 ];
- 
+
 function TabBtn({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
@@ -26,7 +30,7 @@ function TabBtn({ active, onClick, children }) {
     }}>{children}</button>
   );
 }
- 
+
 // ─── Modal wrapper ─────────────────────────────────────────────
 function Modal({ onClose, title, children, wide }) {
   return (
@@ -49,18 +53,22 @@ function Modal({ onClose, title, children, wide }) {
     </div>
   );
 }
- 
+
 // ─── Connection card ───────────────────────────────────────────
-function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteViz, saving }) {
+function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteViz, onToggleVizHidden, saving }) {
   const [showVizs, setShowVizs] = useState(false);
   const isConnected = conn.sheetId && !conn.sheetId.includes('YOUR_');
- 
+
   const modeLabel = conn.tabMode === 'multi'
     ? `${conn.tabs?.length || 0} tabs`
     : conn.tabMode === 'auto'
     ? 'All tabs (auto)'
+    : conn.tabMode === 'scorecard'
+    ? `Scorecard — "${conn.tabName}"`
+    : conn.tabMode === 'scorecard_multi'
+    ? `Scorecard — ${conn.tabs?.length || 0} tabs`
     : `Tab: "${conn.tabName}"`;
- 
+
   return (
     <div style={{
       background: 'var(--card)', borderRadius: 10,
@@ -99,7 +107,7 @@ function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteV
           }}>🗑</button>
         </div>
       </div>
- 
+
       {showVizs && (
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', background: '#fafcff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -117,15 +125,21 @@ function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteV
           {(conn.visualizations || []).map(viz => (
             <div key={viz.id} style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 10px', background: '#fff',
-              border: '1px solid var(--border)', borderRadius: 7, marginBottom: 6,
+              padding: '8px 10px', background: viz.hidden ? '#F7F7F7' : '#fff',
+              border: `1px solid ${viz.hidden ? '#E5E5E5' : 'var(--border)'}`, borderRadius: 7, marginBottom: 6,
+              opacity: viz.hidden ? 0.65 : 1,
             }}>
               <span style={{ fontSize: 16 }}>
                 {viz.type === 'kpi' ? '🔢' : viz.type === 'bar' ? '📊' : viz.type === 'line' ? '📈' : viz.type === 'pie' ? '🥧' : '📋'}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {viz.label || viz.title || viz.type}
+                  {viz.hidden && (
+                    <span style={{ fontSize: 8, fontWeight: 700, color: '#9A7D0A', background: '#FEF9E7', border: '1px solid #F9E79F', borderRadius: 99, padding: '1px 7px', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                      Hidden
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 1 }}>
                   {viz.type === 'kpi'   && `${viz.agg}(${viz.field}) · ${viz.format} · ${viz.color}`}
@@ -136,6 +150,11 @@ function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteV
                   {viz.targetLine && ` · target @ ${viz.targetLine.value}`}
                 </div>
               </div>
+              <button onClick={() => onToggleVizHidden(viz)} disabled={saving} title={viz.hidden ? 'Show on pages again' : 'Hide from pages (keeps the config)'} style={{
+                padding: '3px 9px', fontSize: 9, fontWeight: 600,
+                background: 'transparent', border: '1px solid var(--border)',
+                borderRadius: 5, cursor: 'pointer',
+              }}>{viz.hidden ? '🙈' : '👁'}</button>
               <button onClick={() => onEditViz(viz)} style={{
                 padding: '3px 9px', fontSize: 9, fontWeight: 600,
                 background: 'transparent', border: '1px solid var(--border)',
@@ -145,6 +164,7 @@ function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteV
                 padding: '3px 9px', fontSize: 9, fontWeight: 600,
                 background: 'transparent', border: '1px solid #F1948A',
                 borderRadius: 5, cursor: 'pointer', color: 'var(--red)',
+
               }}>🗑</button>
             </div>
           ))}
@@ -153,7 +173,7 @@ function ConnectionCard({ conn, onEdit, onDelete, onAddViz, onEditViz, onDeleteV
     </div>
   );
 }
- 
+
 // ─── Main page ─────────────────────────────────────────────────
 export default function SettingsPage() {
   const [tab,        setTab]       = useState('sheets');
@@ -162,26 +182,28 @@ export default function SettingsPage() {
   const [testUrl,    setTestUrl]   = useState('');
   const [testResult, setTestResult]= useState(null);
   const [testing,    setTesting]   = useState(false);
- 
+
   // Connection modal
   const [showConnModal, setShowConnModal] = useState(false);
   const [editingConn,   setEditingConn]   = useState(null); // null = add new
- 
+  const [showWizard,    setShowWizard]    = useState(false);
+  const [wizardTabMode, setWizardTabMode] = useState(null); // pre-selected mode from the wizard, for a brand-new connection
+
   // Viz modal
   const [vizConn,     setVizConn]     = useState(null); // the connection being edited
   const [editingViz,  setEditingViz]  = useState(null); // null = add new
- 
+
   const { connections, loading, error, saving, saveError, reload, mutations } = useConfig();
- 
+
   useEffect(() => { setApiKey_(getApiKey()); }, []);
- 
+
   // ── API key ────────────────────────────────────────────────
   function handleSaveKey() {
     saveApiKey(apiKey);
     setKeySaved(true);
     setTimeout(() => setKeySaved(false), 2000);
   }
- 
+
   // ── Test connection ────────────────────────────────────────
   async function handleTest() {
     const id = extractSheetId(testUrl) || testUrl.trim();
@@ -192,20 +214,50 @@ export default function SettingsPage() {
     setTestResult(r);
     setTesting(false);
   }
- 
+
   // ── Connection handlers ────────────────────────────────────
   function openAddConn() {
     setEditingConn(null);
+    setWizardTabMode(null);
+    setShowWizard(true);
+  }
+
+  function handleWizardDone(tabMode) {
+    setWizardTabMode(tabMode);
+    setShowWizard(false);
     setShowConnModal(true);
   }
- 
+
+  function handleWizardSkip() {
+    setWizardTabMode(null);
+    setShowWizard(false);
+    setShowConnModal(true);
+  }
+
   function openEditConn(conn) {
     setEditingConn(conn);
     setShowConnModal(true);
   }
- 
+
+  // FIX: ConnectionForm's onSave can be called two different ways:
+  //   - a single connection object (every normal save — single tab, multi
+  //     tab, scorecard, edit)
+  //   - an ARRAY of connection objects (only when someone used the
+  //     "multiple tables in one tab" checkbox — that flow builds several
+  //     connections from one sheet in one go)
+  //
+  // Previously this always forwarded `payload` straight into
+  // mutations.addConnection(payload), which expects ONE connection object.
+  // When payload was actually an array, it got added as a single garbage
+  // entry (an array has no .dept, so it fell into "Uncategorised"; it has
+  // no .id/.label either, so editing it opened a blank form). Looping over
+  // the array here and adding each table as its own connection is the fix.
   async function handleSaveConn(payload) {
-    if (editingConn) {
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
+        await mutations.addConnection(item);
+      }
+    } else if (editingConn) {
       await mutations.updateConnection(editingConn.id, payload);
     } else {
       await mutations.addConnection(payload);
@@ -213,60 +265,72 @@ export default function SettingsPage() {
     setShowConnModal(false);
     setEditingConn(null);
   }
- 
+
   async function handleDeleteConn(id) {
     if (!confirm('Delete this connection? This cannot be undone.')) return;
     await mutations.deleteConnection(id);
   }
- 
+
   // ── Viz handlers ───────────────────────────────────────────
   function openAddViz(conn) {
     setVizConn(conn);
     setEditingViz(null);
   }
- 
+
   function openEditViz(conn, viz) {
     setVizConn(conn);
     setEditingViz(viz);
   }
- 
+
   function closeVizModal() {
     setVizConn(null);
     setEditingViz(null);
   }
- 
+
   async function handleSaveViz(viz) {
     if (!vizConn) return;
     await mutations.upsertVisualization(vizConn.id, viz);
     closeVizModal();
   }
- 
+
   async function handleDeleteViz(connectionId, vizId) {
     if (!confirm('Delete this visualization?')) return;
     await mutations.deleteVisualization(connectionId, vizId);
   }
- 
+
+  // Quick show/hide toggle — same upsert mutation used for a full edit,
+  // just flipping one field, so no full form round-trip is needed.
+  async function handleToggleVizHidden(connectionId, viz) {
+    await mutations.upsertVisualization(connectionId, { ...viz, hidden: !viz.hidden });
+  }
+
   // ── Group connections by dept ──────────────────────────────
+  // Guard against any already-corrupted entries from the bug above (a
+  // stray array sitting in the connections list instead of an object) so
+  // the page doesn't crash on old bad data while you clean it up.
   const byDept = {};
   connections.forEach(c => {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return;
     const d = c.dept || 'Uncategorised';
     if (!byDept[d]) byDept[d] = [];
     byDept[d].push(c);
   });
- 
+
+  const corruptedCount = connections.filter(c => !c || typeof c !== 'object' || Array.isArray(c)).length;
+
   return (
-    <DashboardLayout>
+    <div>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>⚙ Settings</h2>
           <p className={styles.pageMeta}>Google Sheets connections · Hospital profile · Access control</p>
         </div>
       </div>
- 
+
       <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: 20, overflowX: 'auto' }}>
         {TABS.map(t => <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>)}
       </div>
- 
+
       {/* ══════════ GOOGLE SHEETS ═══════════════════════════════ */}
       {tab === 'sheets' && (
         <>
@@ -289,7 +353,7 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
- 
+
           {/* Test connection */}
           <div style={{ background: 'var(--card)', borderRadius: 12, padding: '20px 24px', marginBottom: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)', marginBottom: 4 }}>🧪 Test a Sheet Connection</div>
@@ -320,7 +384,7 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
- 
+
           {/* Connections list */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>
@@ -334,26 +398,35 @@ export default function SettingsPage() {
               + Add Connection
             </button>
           </div>
- 
+
+          {corruptedCount > 0 && (
+            <div style={{ background: '#FFF9E6', border: '1px solid #F4D03F', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#9A7D0A', marginBottom: 12, lineHeight: 1.6 }}>
+              ⚠ Found {corruptedCount} malformed entr{corruptedCount === 1 ? 'y' : 'ies'} in your connections list —
+              likely left over from the multi-table save bug (now fixed). These aren't shown below since they
+              have no valid id or fields to display. You'll need to open the underlying Drive JSON directly and
+              remove them, since there's no valid id to target with the delete button.
+            </div>
+          )}
+
           {saveError && (
             <div style={{ background: '#FEECEC', border: '1px solid #F1948A', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--red)', marginBottom: 12 }}>
               ✗ {saveError}
             </div>
           )}
- 
+
           {error && (
             <div style={{ background: '#FEECEC', border: '1px solid #F1948A', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--red)', marginBottom: 12 }}>
               Failed to load from Drive: {error}
               <button onClick={reload} style={{ marginLeft: 10, fontSize: 10, color: 'var(--navy)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>Retry</button>
             </div>
           )}
- 
+
           {!loading && connections.length === 0 && !error && (
             <div style={{ background: '#F4F6F9', border: '1px solid var(--border)', borderRadius: 10, padding: '32px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>
               No connections yet. Click <strong>+ Add Connection</strong> to link a department's Google Sheet.
             </div>
           )}
- 
+
           {Object.entries(byDept).map(([dept, conns]) => (
             <div key={dept} style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
@@ -368,13 +441,20 @@ export default function SettingsPage() {
                   onAddViz={() => openAddViz(conn)}
                   onEditViz={(viz) => openEditViz(conn, viz)}
                   onDeleteViz={(vizId) => handleDeleteViz(conn.id, vizId)}
+                  onToggleVizHidden={(viz) => handleToggleVizHidden(conn.id, viz)}
                   saving={saving}
                 />
               ))}
             </div>
           ))}
- 
+
           {/* ── Connection modal ─────────────────────────────── */}
+          {showWizard && (
+            <Modal onClose={() => setShowWizard(false)} title="What kind of sheet are you connecting?">
+              <ConnectionWizard onDone={handleWizardDone} onSkip={handleWizardSkip} />
+            </Modal>
+          )}
+
           {showConnModal && (
             <Modal
               onClose={() => { setShowConnModal(false); setEditingConn(null); }}
@@ -382,14 +462,16 @@ export default function SettingsPage() {
               wide
             >
               <ConnectionForm
-                initial={editingConn}
+                key={editingConn?.id || (wizardTabMode ? `new-${wizardTabMode}` : 'new')}
+                initial={editingConn || (wizardTabMode ? { tabMode: wizardTabMode } : null)}
                 onSave={handleSaveConn}
                 onCancel={() => { setShowConnModal(false); setEditingConn(null); }}
+                onRestartWizard={!editingConn ? () => { setShowConnModal(false); setShowWizard(true); } : undefined}
                 saving={saving}
               />
             </Modal>
           )}
- 
+
           {/* ── Viz modal ────────────────────────────────────── */}
           {vizConn && (
             <Modal
@@ -407,7 +489,7 @@ export default function SettingsPage() {
                   </span>
                 )}
               </div>
- 
+
               <VizForm
                 initial={editingViz}
                 connection={vizConn}
@@ -419,8 +501,11 @@ export default function SettingsPage() {
           )}
         </>
       )}
- 
+
       {/* ══════════ PROFILE ═════════════════════════════════════ */}
+      {/* ══════════ GUIDE ═══════════════════════════════════════ */}
+      {tab === 'guide' && <HelpGuide />}
+
       {tab === 'profile' && (
         <div className={tableStyles.tableBox}>
           <div className={tableStyles.tableTitle}>Hospital Profile</div>
@@ -446,7 +531,7 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
- 
+
       {/* ══════════ PINS ════════════════════════════════════════ */}
       {tab === 'pins' && (
         <div className={tableStyles.tableBox}>
@@ -472,6 +557,6 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

@@ -199,7 +199,7 @@ export default function PayablesPage() {
   ];
  
   return (
-    <DashboardLayout>
+    <div>
       {/* ── Add Invoice Modal ────────────────────────────────────────── */}
       {showAddModal && (
         <Modal title="💳 Add Payable Invoice" onClose={()=>setShowAddModal(false)} onSave={saveInvoice}>
@@ -710,6 +710,6 @@ export default function PayablesPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

@@ -131,7 +131,7 @@ export default function AuditTrailPage() {
   }
  
   return (
-    <DashboardLayout>
+    <div>
  
       {/* ── Detail Modal ──────────────────────────────────────────────── */}
       {detailEntry && (
@@ -296,6 +296,6 @@ export default function AuditTrailPage() {
           />
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
