@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ConnectionForm from '../../components/ConnectionForm';
-import ConnectionWizard from '../../components/ConnectionWizard';
+import ConnectionWizard from '../../components/Connectionwizard';
 import HelpGuide from '../../components/HelpGuide';
 import VizForm from '../../components/VizForm';
 import { getApiKey, saveApiKey, useConfig } from '../../dashboard/lib/useConfig';
