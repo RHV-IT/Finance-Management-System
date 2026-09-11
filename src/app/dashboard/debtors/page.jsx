@@ -2,7 +2,7 @@
  
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
-import ReconciliationAlert from '../../components/ReconciliationAlert';
+//import ReconciliationAlert from '../../components/ReconciliationAlert';
 import PageRenderer from '../../components/PageRenderer';
 import { useSheetData } from '../lib/useConfig';
 import { useConfig } from '../lib/ConfigProvider';
@@ -110,8 +110,8 @@ export default function DebtorsPage() {
       {/* NOTE: passing `latestPeriod` here as a best guess — I don't have
           ReconciliationAlert's actual prop signature, it previously
           received a `month` string from a filter UI this page no longer
-          has. Verify this still matches what the component expects. */}
-      <ReconciliationAlert month={latestPeriod} />
+          has. Verify this still matches what the component expects. 
+      <ReconciliationAlert month={latestPeriod} />*/}
  
       {/* ── KPIs — bespoke: needs a specific row (Largest) and a
           cross-connection number (Ratio) that no generic viz supports ──── */}

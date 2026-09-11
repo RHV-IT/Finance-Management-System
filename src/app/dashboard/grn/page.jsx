@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
-import ReconciliationAlert from '../../components/ReconciliationAlert';
+//import ReconciliationAlert from '../../components/ReconciliationAlert';
 import { useDataWithMeta, usePeriodFilter, PeriodFilterBar } from '../../dashboard/lib/useData';
 import { fmt, DEMO_GRNS } from '../../dashboard/lib/data';
 import styles from '../../styles/Layout.module.css';
@@ -47,7 +47,7 @@ export default function GRNPage() {
         </div>
       </div>
 
-      <ReconciliationAlert month={month} />
+      {/*<ReconciliationAlert month={month} />*/}
 
       <PeriodFilterBar
         month={month} setMonth={setMonth}

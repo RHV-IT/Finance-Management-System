@@ -10,7 +10,7 @@
  * - Sheet just needs to be shared with the service account
  */
  
-import { meltScorecard, colLetterToIndex } from './scorecardParser';
+import { meltScorecard, colLetterToIndex } from './Scorecardparser';
  
 // ─── Internal: call our server route ─────────────────────────
 
