@@ -442,7 +442,7 @@ function ColumnMapBuilder({ pairs, onChange, sheetHeaders }) {
                         {sheetHeaders
                             .filter(h => !pairs.find(p => p.theirHeader === h))
                             .map(h => (
-                                <button key={h} onClick={() => onChange([...pairs, { ourField:'', theirHeader:h, matchBy:'text', theirCol:'' }])}
+                                <button key={h} onClick={() => onChange([...pairs, { ourField: h, theirHeader: h, matchBy: 'text', theirCol: '' }])}
                                     style={{ padding:'2px 10px', background:'#fff', border:'1px solid var(--border)',
                                         borderRadius:99, fontSize:10, cursor:'pointer', color:'var(--navy)', fontWeight:600 }}>
                                     + {h}
@@ -927,19 +927,26 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
             if (r.tabs?.length === 1 && !form.tabName) setField('tabName', r.tabs[0]);
 
             if (!multiTable && r.tabs?.length > 0) {
-                const firstTab = r.tabs[0];
+                const targetTab = form.tabName || r.tabs[0];
+                const headerRowNum = form.headerRow || 1;
                 try {
                     const res = await fetch('/api/sheets/fetch', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sheetId: id, tabName: firstTab, range: 'A1:Z1' }),
+                        body: JSON.stringify({ sheetId: id, tabName: targetTab, range: `A${headerRowNum}:Z${headerRowNum}` }),
                     });
                     if (res.ok) {
                         const data = await res.json();
                         const headers = (data.values?.[0] || []).map(h => String(h).trim()).filter(Boolean);
                         setSheetHeaders(headers);
-                        if (colPairs.length === 0 && headers.length > 0) {
-                            setColPairs(headers.map(h => ({ ourField:'', theirHeader:h })));
+                        // Was: only ran if colPairs was still empty — meant re-testing a
+                        // DIFFERENT tab or header row after the first Test & Load never
+                        // actually refreshed the mapping table below, it just silently
+                        // kept showing whatever tab was detected the first time.
+                        // Every Test & Load click is an explicit "give me fresh data"
+                        // action, so it should always overwrite with what was just fetched.
+                        if (headers.length > 0) {
+                            setColPairs(headers.map(h => ({ ourField: h, theirHeader: h })));
                         }
                     }
                 } catch {}
@@ -970,8 +977,9 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                 const headers = (data.values?.[0] || []).map(h => String(h).trim()).filter(Boolean);
                 updateTable(idx, {
                     sheetHeaders: headers,
-                    colPairs: table.colPairs.length === 0 && headers.length > 0
-                        ? headers.map(h => ({ ourField:'', theirHeader:h }))
+                    // Same fix as handleTest: always refresh, don't gate on colPairs being empty.
+                    colPairs: headers.length > 0
+                        ? headers.map(h => ({ ourField: h, theirHeader: h }))
                         : table.colPairs,
                 });
             }
