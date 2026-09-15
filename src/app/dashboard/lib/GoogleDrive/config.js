@@ -11,7 +11,7 @@ function getAuth() {
     if (!privateKey)  throw new Error("Missing env var: GOOGLE_PRIVATE_KEY");
     if (!fileId)      throw new Error("Missing env var: GOOGLE_CONFIG_FILE_ID");
  
-    // Next.js sometimes double-escapes \n in .env.local — handle both
+    
     const formattedKey = privateKey.includes("\\n")
         ? privateKey.replace(/\\n/g, "\n")
         : privateKey;
