@@ -10,9 +10,46 @@ const iStyle = {
     fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#fff',
 };
 
+const DEPARTMENTS = [
+  { id: 'store', name: 'Store' },
+  { id: 'pharmacy', name: 'Pharmacy' },
+  { id: 'finance', name: 'Finance' },
+  { id: 'procurement', name: 'Procurement' },
+  { id: 'kitchen', name: 'Kitchen' },
+  { id: 'cssd', name: 'CSSD' },
+  { id: 'it', name: 'IT' },
+  { id: 'hr', name: 'HR' },
+  { id: 'revenue', name: 'Revenue' },
+  { id: 'cashbook', name: 'Cashbook' },
+  { id: 'expenses', name: 'Expenses' },
+  { id: 'grn', name: 'GRN' },
+  { id: 'supplychain', name: 'Supply Chain' },
+  { id: 'debtors', name: 'Debtors' },
+  { id: 'assets', name: 'Assets' },
+  { id: 'kpi', name: 'KPI' },
+  { id: 'weekly', name: 'Weekly' },
+  { id: 'inventory', name: 'Inventory' },
+  { id: 'overview', name: 'Overview' },
+];
+
 const PAGES = ['inventory','pharmacy','store','overview','revenue','cashbook',
                'expenses','grn','supplychain','debtors','assets','kpi','weekly', 'hr', 'it', 'cssd'];
 
+const getAllowedPages = () => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const allowed = JSON.parse(
+      sessionStorage.getItem('rhv_allowed_pages') || '[]'
+    );
+
+    return allowed.includes('*')
+      ? PAGES
+      : PAGES.filter(page => allowed.includes(page));
+  } catch {
+    return [];
+  }
+};
 // Maintained by hand — one entry per page that has more than one real
 // destination (a tab, or a secondary module used for just one KPI).
 // Drives the "which tab/section" dropdown below instead of a free-typed
@@ -857,7 +894,11 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
     const [sheetHeaders, setSheetHeaders] = useState([]);
     const [errors,     setErrors]     = useState({});
     const [newTabName, setNewTabName] = useState('');
+
     const [newTabKey,  setNewTabKey]  = useState('');
+    const [allowedPages, setAllowedPages] = useState([]);
+
+    const [userDepartment, setUserDepartment] = useState(null);
 
     // ── Multi-table-per-sheet mode ──────────────────────────────
     // Only offered when creating a new connection — editing a bundle
@@ -899,6 +940,58 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
         setErrors({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initial?.id]);
+
+
+
+
+    useEffect(() => {
+        setAllowedPages(getAllowedPages());
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const role = sessionStorage.getItem('rhv_role');
+
+        let allowed = [];
+
+        try {
+            allowed = JSON.parse(
+            sessionStorage.getItem('rhv_allowed_pages') || '[]'
+            );
+        } catch {
+            allowed = [];
+        }
+
+        const dept = DEPARTMENTS.find(d => d.id === role);
+
+        setUserDepartment(dept || null);
+
+        setAllowedPages(
+            allowed.includes('*')
+            ? PAGES
+            : PAGES.filter(page => allowed.includes(page))
+        );
+    }, []);
+
+    useEffect(() => {
+        if (userDepartment) {
+            setField('dept', userDepartment.name);
+        }
+    }, [userDepartment]);
+
+    useEffect(() => {
+        const role = sessionStorage.getItem('rhv_role');
+
+        const dept = DEPARTMENTS.find(d => d.id === role);
+
+        if (dept) {
+            setField('dept', dept.name);
+        }
+    }, []);
+
+
+
 
     function setField(key, value) { setForm(f => ({ ...f, [key]: value })); }
 
@@ -1091,28 +1184,61 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                 </Field>
 
                 <Field label="Department">
-                    <input value={form.dept} onChange={e=>setField('dept',e.target.value)}
-                        placeholder="Store" style={iStyle} />
+                    <select
+                        value={form.dept || ''}
+                        disabled
+                        style={iStyle}
+                    >
+                        <option value="">
+                        Select department…
+                        </option>
+
+                        {userDepartment && (
+                        <option value={userDepartment.name}>
+                            {userDepartment.name}
+                        </option>
+                        )}
+                    </select>
                 </Field>
 
                 {!multiTable && (
                     <>
                         <Field label="Page this feeds" span>
-                            <select value={form.feeds?.[0]?.page||''}
-                                onChange={e=>{
-                                    const page = e.target.value;
-                                    setForm(f=>({...f,feeds:[{...f.feeds?.[0],page}]}));
-                                    // If this page has exactly one known destination, just fill
-                                    // it in — no reason to make the person pick from a list of one.
-                                    const opts = PAGE_MODULES[page];
-                                    if (opts && opts.length === 1) setField('module', opts[0].value);
+                            <select
+                                value={form.feeds?.[0]?.page || ''}
+                                onChange={e => {
+                                const page = e.target.value;
+
+                                setForm(f => ({
+                                    ...f,
+                                    feeds: [
+                                    {
+                                        ...f.feeds?.[0],
+                                        page
+                                    }
+                                    ]
+                                }));
+
+                                const opts = PAGE_MODULES[page];
+
+                                if (opts && opts.length === 1) {
+                                    setField('module', opts[0].value);
+                                } else {
+                                    setField('module', '');
+                                }
                                 }}
-                                style={iStyle}>
+                                style={iStyle}
+                            >
                                 <option value="">Select page…</option>
-                                {PAGES.map(p=><option key={p} value={p}>{p}</option>)}
+
+                                {allowedPages.map(page => (
+                                <option key={page} value={page}>
+                                    {page}
+                                </option>
+                                ))}
                             </select>
                         </Field>
-                        
+
                         <Field label="Label">
                             <input value={form.label} onChange={e=>setField('label',e.target.value)}
                                 placeholder="SIV Issues" style={iStyle} />
