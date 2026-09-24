@@ -1,23 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '../../components/DashboardLayout';
 import ConnectionForm from '../../components/ConnectionForm';
-import ConnectionWizard from '../../components/Connectionwizard';
+//import ConnectionWizard from '../../components/ConnectionWizard';
 import HelpGuide from '../../components/HelpGuide';
 import VizForm from '../../components/VizForm';
-import { getApiKey, saveApiKey, useConfig } from '../../dashboard/lib/useConfig';
-//import { useConfig } from '../lib/ConfigProvider';
+import ManageDepartments from '../../components/ManageDepartments';
+import { useConfig, getApiKey, saveApiKey } from '../lib/useConfig';
 import { testSheetConnection, extractSheetId } from '../../dashboard/lib/googleSheets';
+import { getAllowedConnections, canManagePermissions, hasAccess } from '../lib/permissions';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
 
 // ─── Tabs ─────────────────────────────────────────────────────
-const TABS = [
-  { key: 'sheets',  label: '🔗 Google Sheets'   },
-  { key: 'guide',   label: '📖 Guide'           },
-  { key: 'profile', label: '🏥 Hospital Profile' },
-  { key: 'pins',    label: '🔐 PINs & Roles'     },
+// 'departments' only appears for someone whose login has
+// canManagePermissions === true (CEO/COO/Admin/Dev/IT, or anyone else
+// later granted it) — everyone else never sees the tab button at all,
+// matching what was asked for back when this tab was still the temporary
+// seeding tool.
+const ALL_TABS = [
+  { key: 'sheets',      label: '🔗 Google Sheets'    },
+  { key: 'guide',       label: '📖 Guide'             },
+  { key: 'departments', label: '🏢 Departments', requiresManage: true },
+  {/* key: 'profile',     label: '🏥 Hospital Profile'  */},
+  {/* key: 'pins',        label: '🔐 PINs & Roles'       */},
 ];
 
 function TabBtn({ active, onClick, children }) {
@@ -195,6 +201,21 @@ export default function SettingsPage() {
 
   const { connections, loading, error, saving, saveError, reload, mutations } = useConfig();
 
+  // Read once per mount — same lazy-init pattern as Sidebar, since this
+  // page only ever renders client-side after the dashboard layout's own
+  // auth check has already passed.
+  const [allowedConnections] = useState(() => getAllowedConnections());
+  const [canManage]          = useState(() => canManagePermissions());
+
+  const TABS = ALL_TABS.filter(t => !t.requiresManage || canManage);
+
+  // If someone's current tab is 'departments' but they lose access to it
+  // (shouldn't normally happen mid-session, but guards against a stale
+  // tab selection if permissions were just tightened), fall back to sheets.
+  useEffect(() => {
+    if (tab === 'departments' && !canManage) setTab('sheets');
+  }, [tab, canManage]);
+
   useEffect(() => { setApiKey_(getApiKey()); }, []);
 
   // ── API key ────────────────────────────────────────────────
@@ -219,7 +240,7 @@ export default function SettingsPage() {
   function openAddConn() {
     setEditingConn(null);
     setWizardTabMode(null);
-    setShowWizard(true);
+    setShowConnModal(true);   // was: setShowWizard(true)
   }
 
   function handleWizardDone(tabMode) {
@@ -239,19 +260,6 @@ export default function SettingsPage() {
     setShowConnModal(true);
   }
 
-  // FIX: ConnectionForm's onSave can be called two different ways:
-  //   - a single connection object (every normal save — single tab, multi
-  //     tab, scorecard, edit)
-  //   - an ARRAY of connection objects (only when someone used the
-  //     "multiple tables in one tab" checkbox — that flow builds several
-  //     connections from one sheet in one go)
-  //
-  // Previously this always forwarded `payload` straight into
-  // mutations.addConnection(payload), which expects ONE connection object.
-  // When payload was actually an array, it got added as a single garbage
-  // entry (an array has no .dept, so it fell into "Uncategorised"; it has
-  // no .id/.label either, so editing it opened a blank form). Looping over
-  // the array here and adding each table as its own connection is the fix.
   async function handleSaveConn(payload) {
     if (Array.isArray(payload)) {
       for (const item of payload) {
@@ -298,28 +306,35 @@ export default function SettingsPage() {
     await mutations.deleteVisualization(connectionId, vizId);
   }
 
-  // Quick show/hide toggle — same upsert mutation used for a full edit,
-  // just flipping one field, so no full form round-trip is needed.
   async function handleToggleVizHidden(connectionId, viz) {
     await mutations.upsertVisualization(connectionId, { ...viz, hidden: !viz.hidden });
   }
 
   // ── Group connections by dept ──────────────────────────────
-  // Guard against any already-corrupted entries from the bug above (a
-  // stray array sitting in the connections list instead of an object) so
-  // the page doesn't crash on old bad data while you clean it up.
+  // NEW: connections are filtered down to allowedConnections BEFORE
+  // grouping — a full-access login (allowedConnections includes '*')
+  // sees everything, exactly as before; anyone else only ever sees their
+  // own department's connections grouped the same way they always were.
+  // This is a visibility filter only, same honest limitation as
+  // lib/permissions.js — it hides things in the UI, it doesn't stop the
+  // underlying API routes from being called directly.
+  const visibleConnections = connections.filter(c => {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return false; // keep the existing corrupted-entry guard
+    return hasAccess(allowedConnections, c.id);
+  });
+
   const byDept = {};
-  connections.forEach(c => {
-    if (!c || typeof c !== 'object' || Array.isArray(c)) return;
+  visibleConnections.forEach(c => {
     const d = c.dept || 'Uncategorised';
     if (!byDept[d]) byDept[d] = [];
     byDept[d].push(c);
   });
 
   const corruptedCount = connections.filter(c => !c || typeof c !== 'object' || Array.isArray(c)).length;
+  const hiddenByPermissionCount = connections.length - corruptedCount - visibleConnections.length;
 
   return (
-    <div>
+    <>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>⚙ Settings</h2>
@@ -390,7 +405,7 @@ export default function SettingsPage() {
             <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>
               Connected Sheets
               <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, color: 'var(--muted)' }}>
-                {loading ? 'Loading…' : `${connections.length} connection${connections.length !== 1 ? 's' : ''}`}
+                {loading ? 'Loading…' : `${visibleConnections.length} connection${visibleConnections.length !== 1 ? 's' : ''}`}
               </span>
             </div>
             <button onClick={openAddConn}
@@ -398,6 +413,12 @@ export default function SettingsPage() {
               + Add Connection
             </button>
           </div>
+
+          {hiddenByPermissionCount > 0 && (
+            <div style={{ background: '#EBF5FB', border: '1px solid #AED6F1', borderRadius: 8, padding: '8px 14px', fontSize: 10.5, color: '#1B4F72', marginBottom: 12 }}>
+              {hiddenByPermissionCount} connection{hiddenByPermissionCount !== 1 ? 's are' : ' is'} hidden — outside what your department is permitted to see.
+            </div>
+          )}
 
           {corruptedCount > 0 && (
             <div style={{ background: '#FFF9E6', border: '1px solid #F4D03F', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#9A7D0A', marginBottom: 12, lineHeight: 1.6 }}>
@@ -421,7 +442,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {!loading && connections.length === 0 && !error && (
+          {!loading && visibleConnections.length === 0 && !error && (
             <div style={{ background: '#F4F6F9', border: '1px solid var(--border)', borderRadius: 10, padding: '32px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>
               No connections yet. Click <strong>+ Add Connection</strong> to link a department's Google Sheet.
             </div>
@@ -449,11 +470,11 @@ export default function SettingsPage() {
           ))}
 
           {/* ── Connection modal ─────────────────────────────── */}
-          {showWizard && (
+          {/*showWizard && (
             <Modal onClose={() => setShowWizard(false)} title="What kind of sheet are you connecting?">
               <ConnectionWizard onDone={handleWizardDone} onSkip={handleWizardSkip} />
             </Modal>
-          )}
+          )*/}
 
           {showConnModal && (
             <Modal
@@ -480,7 +501,6 @@ export default function SettingsPage() {
                 ? `Edit Visualization — ${editingViz.label || editingViz.title || editingViz.type}`
                 : `Add Visualization — ${vizConn.label || vizConn.module}`}
             >
-              {/* Show which connection this is for */}
               <div style={{ background: '#F4F6F9', borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 11, color: 'var(--navy)' }}>
                 📊 Configuring visualization for: <strong>{vizConn.label || vizConn.module}</strong>
                 {Object.keys(vizConn.columnMap || {}).length > 0 && (
@@ -502,10 +522,10 @@ export default function SettingsPage() {
         </>
       )}
 
-      {/* ══════════ PROFILE ═════════════════════════════════════ */}
       {/* ══════════ GUIDE ═══════════════════════════════════════ */}
       {tab === 'guide' && <HelpGuide />}
 
+      {/* ══════════ PROFILE ═════════════════════════════════════ */}
       {tab === 'profile' && (
         <div className={tableStyles.tableBox}>
           <div className={tableStyles.tableTitle}>Hospital Profile</div>
@@ -536,6 +556,11 @@ export default function SettingsPage() {
       {tab === 'pins' && (
         <div className={tableStyles.tableBox}>
           <div className={tableStyles.tableTitle}>Role PINs</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
+            This screen is being replaced by <strong>🏢 Departments</strong>, where PINs are edited per real
+            department (and stay in sync with what the login screen actually shows). Kept here for now purely
+            as a visual placeholder.
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {[
               { role: 'Admin',    icon: '👑', desc: 'Full access'              },
@@ -547,16 +572,16 @@ export default function SettingsPage() {
               <div key={item.role} style={{ background: 'var(--bg)', borderRadius: 8, padding: '14px 16px' }}>
                 <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--navy)', marginBottom: 2 }}>{item.icon} {item.role}</div>
                 <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 10 }}>{item.desc}</div>
-                <input type="password" maxLength={4} placeholder="••••"
-                  style={{ width: 80, padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 7, fontSize: 18, letterSpacing: 6, outline: 'none', textAlign: 'center' }} />
+                <input type="password" maxLength={4} placeholder="••••" disabled
+                  style={{ width: 80, padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 7, fontSize: 18, letterSpacing: 6, outline: 'none', textAlign: 'center', opacity: 0.5 }} />
               </div>
             ))}
           </div>
-          <button style={{ marginTop: 14, padding: '9px 20px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            💾 Update PINs
-          </button>
         </div>
       )}
-    </div>
+
+      {/* ══════════ DEPARTMENTS ═════════════════════════════════ */}
+      {tab === 'departments' && canManage && <ManageDepartments />}
+    </>
   );
 }

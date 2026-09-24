@@ -1,29 +1,19 @@
 /**
  * app/dashboard/settings/connection-guide/page.jsx
  *
- * No client JS needed. Every "type" card below is a native <details>/
- * <summary> — closed by default (so the page doesn't dump everything on
- * screen at once), toggleable by click, AND automatically opened by the
- * browser itself when a jump-link (#type-one-tab etc.) points at it —
- * that's a real, built-in HTML behavior, not something coded here.
+ * A guided walkthrough instead of a long page: one small step per screen,
+ * with Back / Next buttons. The reader answers two simple questions
+ * ("what does your sheet look like?" and "what do you want to show?") and the
+ * guide builds the right path for them. A "Need help?" button opens a
+ * pick-your-problem list at any time.
  *
- * IMPORTANT: the id goes on a <div> INSIDE each <details>'s content, not
- * on the <details> tag itself. That's deliberate — the browser's
- * "auto-open a closed <details> to reveal a link target" behavior only
- * triggers for ANCESTORS of the linked element, so the id has to sit
- * inside the collapsible content, not on the collapsible element itself,
- * or the auto-open silently won't fire.
- *
- * WIZARD STEP: this section describes the ConnectionWizard component
- * (the picture-based type picker shown before the connection form even
- * opens) based on the tabMode values it hands off to ConnectionForm
- * (single/multi/auto/scorecard) — it hasn't been reviewed against the
- * wizard's actual file yet. If its real wording/images differ, update
- * the "Step ②" content below to match.
+ * NOTE: the "Open the connection window" screen describes ConnectionWizard
+ * from the tabMode values it hands to ConnectionForm — it hasn't been checked
+ * against the wizard's real file. Update that wording if it differs.
  */
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import NormalPic from '../../../src/assets/normal_pic.webp';
 import NormalPicTabs from '../../../src/assets/normal_multiple_tabs.webp';
@@ -31,977 +21,430 @@ import KPI from '../../../src/assets/kpi_sheet.webp';
 import KPIMultiTab from '../../../src/assets/KPIMultiple.webp';
 import MultipleTables from '../../../src/assets/multiple_tables.webp';
 
-const page = {
-    maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px',
-    fontFamily: 'inherit', color: 'var(--text, #1B2631)', lineHeight: 1.75,
-};
-const h1 = { fontSize: 24, fontWeight: 800, color: 'var(--navy, #1B2631)', marginBottom: 6 };
-const intro = { fontSize: 14, color: 'var(--muted, #7F8C9A)', marginBottom: 28, maxWidth: 640 };
-const navBox = {
-    background: '#F4F6F9', border: '1px solid var(--border, #E0E4EA)', borderRadius: 12,
-    padding: '18px 22px', marginBottom: 36,
-};
-const navTitle = { fontSize: 12, fontWeight: 800, color: 'var(--navy, #1B2631)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 };
-const navLink = { display: 'block', fontSize: 13, color: '#117A65', textDecoration: 'none', padding: '4px 0', fontWeight: 600 };
+const css = `
+@keyframes gz-fwd{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:none}}
+@keyframes gz-back{from{opacity:0;transform:translateX(-44px)}to{opacity:1;transform:none}}
+@keyframes gz-fade{from{opacity:0}to{opacity:1}}
+@keyframes gz-pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+@keyframes gz-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes gz-bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-18px)}}
+@keyframes gz-glow{0%,100%{box-shadow:0 6px 18px rgba(17,122,101,.35)}50%{box-shadow:0 6px 28px rgba(17,122,101,.65)}}
 
-const section = { marginBottom: 44, scrollMarginTop: 24 };
-const h2 = { fontSize: 19, fontWeight: 800, color: 'var(--navy, #1B2631)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 };
-const sub = { fontSize: 13, color: 'var(--muted, #7F8C9A)', marginBottom: 18 };
+.gz{max-width:800px;margin:0 auto;padding:28px 20px 60px;font-size:20px;line-height:1.7;color:#1B2631}
+.gz *{box-sizing:border-box}
+.gz button{font-family:inherit}
+.gz button:focus-visible,.gz-choice:focus-visible{outline:4px solid #F5B041;outline-offset:3px}
 
-const step = { display: 'flex', gap: 14, marginBottom: 18, alignItems: 'flex-start' };
-const stepNum = {
-    flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
-    background: '#117A65', color: '#fff', fontWeight: 800, fontSize: 13,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-};
-const stepBody = { fontSize: 13.5, paddingTop: 4 };
-const stepTitle = { fontWeight: 700, color: 'var(--navy, #1B2631)', marginBottom: 3, fontSize: 14 };
+.gz-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.gz-brand{font-size:19px;font-weight:800;color:#0E5F4E}
+.gz-help{background:#fff;border:2px solid #C0392B;color:#A93226;font-weight:800;font-size:17px;padding:10px 18px;border-radius:99px;cursor:pointer;transition:transform .2s,background .2s,color .2s}
+.gz-help:hover{background:#C0392B;color:#fff;transform:translateY(-2px)}
 
-const code = { background: '#F4F6F9', padding: '1px 7px', borderRadius: 5, fontFamily: 'monospace', fontSize: 12.5 };
-const tip = {
-    background: '#EBF5FB', border: '1px solid #AED6F1', borderRadius: 8,
-    padding: '10px 14px', fontSize: 12.5, color: '#1B4F72', margin: '10px 0',
-};
-const warn = {
-    background: '#FEF9E7', border: '1px solid #F9E79F', borderRadius: 8,
-    padding: '10px 14px', fontSize: 12.5, color: '#9A7D0A', margin: '10px 0',
+.gz-bar{display:flex;gap:8px;margin-bottom:8px}
+.gz-seg{flex:1;height:10px;border-radius:99px;background:#DDE2E8;overflow:hidden}
+.gz-seg i{display:block;height:100%;width:0;background:#117A65;border-radius:99px;transition:width .6s ease}
+.gz-seg.on i{width:100%}
+.gz-where{font-size:16px;color:#4A5866;margin-bottom:18px;min-height:26px}
+
+.gz-card{background:#fff;border:2px solid #D5DAE1;border-radius:24px;padding:36px 34px;box-shadow:0 10px 34px rgba(27,38,49,.08);min-height:360px}
+.gz-card.fwd{animation:gz-fwd .45s ease both}
+.gz-card.back{animation:gz-back .45s ease both}
+.gz-card h1{font-size:34px;line-height:1.25;margin:0 0 16px;font-weight:800}
+.gz-card p{margin:0 0 16px}
+.gz-emoji{font-size:64px;line-height:1;margin-bottom:14px;display:inline-block;animation:gz-pop .6s ease both}
+.gz-emoji.big{animation:gz-bounce 1.4s ease-in-out infinite}
+.gz-code{background:#E8ECF1;padding:2px 10px;border-radius:8px;font-family:monospace;font-size:18px;white-space:nowrap}
+
+.gz-note{display:flex;gap:12px;border-radius:16px;padding:16px 20px;margin:18px 0 0;font-size:18px;line-height:1.6;animation:gz-pop .5s .15s ease both}
+.gz-note>span:first-child{font-size:26px}
+.gz-tip{background:#E3F2FD;border:2px solid #90CAF9;color:#0D3C61}
+.gz-warn{background:#FFF6D6;border:2px solid #F2CC4D;color:#6B5200}
+
+.gz-pic{margin:0 0 20px;border:2px dashed #C9CFD8;border-radius:16px;padding:10px;background:#FAFBFC;overflow:hidden;animation:gz-pop .5s ease both}
+.gz-pic .w{overflow:hidden;border-radius:8px}
+.gz-pic img{display:block;width:100%;height:auto;transition:transform .5s}
+.gz-pic:hover img{transform:scale(1.04)}
+.gz-cap{font-size:15px;color:#4A5866;font-style:italic;margin-top:8px}
+
+.gz-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:20px}
+.gz-choice{text-align:left;background:#fff;border:3px solid #C9CFD8;border-radius:20px;padding:16px;cursor:pointer;font-size:18px;line-height:1.5;color:inherit;position:relative;transition:transform .25s,box-shadow .25s,border-color .25s,background .25s;animation:gz-pop .5s ease both}
+.gz-choice:nth-child(2){animation-delay:.06s}.gz-choice:nth-child(3){animation-delay:.12s}.gz-choice:nth-child(4){animation-delay:.18s}.gz-choice:nth-child(5){animation-delay:.24s}
+.gz-choice:hover{transform:translateY(-6px);border-color:#117A65;box-shadow:0 14px 28px rgba(17,122,101,.18)}
+.gz-choice.sel{border-color:#117A65;background:#EAF6F2;box-shadow:0 10px 26px rgba(17,122,101,.22)}
+.gz-choice.sel::after{content:'✓';position:absolute;top:12px;right:14px;width:36px;height:36px;border-radius:50%;background:#117A65;color:#fff;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;animation:gz-pop .3s ease both}
+.gz-choice .t{font-weight:800;font-size:20px;margin:8px 0 4px;display:block}
+.gz-choice .d{font-size:16px;color:#4A5866;display:block}
+.gz-choice .em{font-size:40px;display:block}
+.gz-choice .pic{display:block;overflow:hidden;border-radius:10px;border:2px dashed #C9CFD8;margin-bottom:6px}
+.gz-choice .pic img{display:block;width:100%;height:auto;transition:transform .5s}
+.gz-choice:hover .pic img{transform:scale(1.08)}
+.gz-look{display:inline-block;margin-top:10px;background:#E8ECF1;border:none;border-radius:99px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s,transform .2s}
+.gz-look:hover{background:#D5F0E8;transform:scale(1.06)}
+
+.gz-nav{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:26px}
+.gz-btn{border:none;border-radius:99px;font-weight:800;font-size:22px;padding:18px 40px;cursor:pointer;background:#117A65;color:#fff;transition:transform .2s,background .2s,box-shadow .2s;display:inline-flex;align-items:center;gap:10px}
+.gz-btn:hover:not(:disabled){transform:translateY(-4px);background:#0E6552;box-shadow:0 12px 24px rgba(17,122,101,.35)}
+.gz-btn:active:not(:disabled){transform:translateY(0)}
+.gz-btn.ready{animation:gz-glow 2s ease-in-out infinite}
+.gz-btn.ready .ar{animation:gz-nudge 1.2s ease-in-out infinite}
+.gz-btn:disabled{background:#B8C0C9;cursor:not-allowed}
+.gz-btn.ghost{background:#fff;color:#0E5F4E;border:3px solid #117A65;padding:15px 30px;font-size:20px}
+.gz-btn.ghost:hover:not(:disabled){background:#EAF6F2}
+.gz-btn.ghost:disabled{visibility:hidden}
+.gz-hint{text-align:center;font-size:16px;color:#4A5866;margin-top:14px}
+
+.gz-prob{display:block;width:100%;text-align:left;background:#FEECEC;border:2px solid #F1948A;border-radius:16px;padding:16px 20px;margin-bottom:12px;font-size:19px;font-weight:700;color:#A93226;cursor:pointer;transition:transform .2s,box-shadow .2s;animation:gz-pop .4s ease both}
+.gz-prob:hover{transform:translateX(8px);box-shadow:0 8px 20px rgba(192,57,43,.18)}
+.gz-ans{background:#EAF6F2;border:2px solid #117A65;border-radius:18px;padding:20px 24px;animation:gz-pop .4s ease both}
+
+.gz-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;cursor:zoom-out;animation:gz-fade .25s ease both}
+.gz-modal-in{position:relative;max-width:96vw;max-height:94vh;background:#fff;border-radius:16px;padding:16px;cursor:default;animation:gz-pop .3s ease both}
+.gz-modal-in img{width:100%;height:auto;max-height:80vh;object-fit:contain;border-radius:8px}
+.gz-x{position:absolute;top:-16px;right:-16px;width:48px;height:48px;border-radius:50%;border:3px solid #fff;background:#1B2631;color:#fff;font-size:20px;font-weight:800;cursor:pointer;transition:transform .2s,background .2s}
+.gz-x:hover{transform:rotate(90deg) scale(1.1);background:#C0392B}
+
+@media(max-width:600px){
+  .gz{font-size:18px;padding:16px 12px 50px}
+  .gz-card{padding:24px 18px}.gz-card h1{font-size:27px}
+  .gz-btn{font-size:20px;padding:16px 26px}.gz-btn.ghost{padding:13px 20px;font-size:18px}
+}
+@media(prefers-reduced-motion:reduce){.gz *,.gz-modal,.gz-modal *{animation:none!important;transition:none!important}}
+`;
+
+const C = ({ children }) => <span className="gz-code">{children}</span>;
+const b = t => <strong>{t}</strong>;
+
+// One screen of the walkthrough: st(part, title, body, { tip, warn, img, cap })
+const st = (part, title, body, x = {}) => ({ kind: 'step', part, title, body, ...x });
+
+const THREE_BOXES = st(3, 'Fill in the first three boxes', <>
+    {b('Label')} is any name you like, just for you (for example "Kitchen Stock"). {b('Page')} is the
+    screen in the app where it will appear. Once you pick a page, a list appears for {b('Module key')} —
+    just choose one from that list. You don't need to type it.
+</>);
+const TAB_NAME = st(3, "Type your tab's name", <>
+    Look at the little tabs along the bottom of your Google Sheet and type the name exactly as it's
+    written — capital letters count.
+</>);
+const SAVE = st(3, 'Save it', <>Click {b('💾 Save Connection')}. Nearly done — next we'll choose what to show on the page.</>);
+const CHECK_COLS = st(3, 'Check the column names', <>
+    After {b('Test & Load')}, the system guesses what each column is called and fills it in for you.
+    Look through them, and only change the ones that look wrong.
+</>);
+const ROLES = st(3, 'Say what each column is', <>
+    For each column shown, pick one: {b('KPI Category')}, {b('Description / Measure')} (needed for at least
+    one column — it names each KPI), {b('Unit / Target text')}, {b('Time period')} (also needed for at least
+    one column), or {b('Skip this column')}.
+</>, { warn: <>No categories in your sheet? Leave "KPI Category" empty everywhere and mark your one label column as "Description / Measure". Every KPI will sit in one group.</> });
+const SQUASH = st(3, 'Squashed cells (only if you see them)', <>
+    Sometimes one box holds several numbers jammed together, like <C>04:04:01:01</C>. If the column next
+    to it lists labels with colons (like "Pharmacist: Pharm. Tech.: Porter: Admin"), the system splits
+    them {b('automatically')} — do nothing. Only open "Advanced: some cells pack multiple values together"
+    if your cell uses another separator (like <C>---</C>) or has no label column. Then describe the
+    category, the KPI, the labels in order, and the separator.
+</>);
+
+const TYPES = {
+    A: {
+        name: 'A simple list', pick: 'One tab', img: NormalPic,
+        short: 'One row for every item, all in one tab.',
+        desc: <>Your sheet has {b('one row for every single thing')} — one per purchase, per staff member, or per item in stock. It all lives in one tab. This is the most common kind.</>,
+        steps: [
+            THREE_BOXES, TAB_NAME,
+            st(3, 'Say which part to read', <>
+                {b('Range')} is the part of the sheet to read. Leave it as <C>A:Z</C> if the whole sheet is
+                one table. {b('Header Row Number')} is the row with your column titles — almost always <C>1</C>.
+                Then paste your sheet's link into "Google Sheet URL or ID" and click {b('🔌 Test & Load')}.
+            </>, { tip: <>Data starting lower down, say row 5? Set Range to <C>A5:Z100</C> and Header Row Number to <C>5</C>. The two must point at the same row.</> }),
+            CHECK_COLS, SAVE,
+        ],
+    },
+    B: {
+        name: 'A list split into tabs', pick: 'Multiple tabs', img: NormalPicTabs,
+        short: 'Like a simple list, but one tab per month.',
+        desc: <>Same as a simple list — one row per thing — but split up: one tab for January, one for February, and so on. The columns look the same in every tab.</>,
+        steps: [
+            THREE_BOXES,
+            st(3, 'Add your tabs one at a time', <>
+                Type each tab's exact name. A "key" often fills itself in (typing "January" fills in{' '}
+                <C>2026-01</C>). Or just click the tab names under "Quick add from sheet".
+            </>),
+            st(3, 'Say which part to read', <>Set {b('Range')} and {b('Header Row Number')} the same way as for a simple list (<C>A:Z</C> and <C>1</C> for most sheets). They apply to every tab you added.</>),
+            st(3, 'Check the column names, then save', <>The system has already guessed the column names. Fix any that look wrong, then click {b('💾 Save Connection')}.</>),
+        ],
+    },
+    C: {
+        name: 'A report card (KPI Scorecard)', pick: 'KPI Scorecard', img: KPI,
+        short: 'One row per measurement, months across the top.',
+        desc: <>Instead of adding new rows over time, each measurement (KPI) has {b('one row, forever')}, and the months run {b('sideways')} as columns (JAN, FEB, MAR…).</>,
+        steps: [
+            THREE_BOXES, TAB_NAME,
+            st(3, 'Tell us where things sit', <>Three quick questions: which row has the category / measure labels (usually around row 6)? Which row does the KPI data start on (a row or two below)? Roughly how many KPI rows are there? A rough guess is fine.</>),
+            st(3, 'Show the columns', <>Click {b('🔍 Show me the columns in that row')}. The system reads your sheet and shows what's written in each column — no guessing needed.</>),
+            ROLES, SQUASH, SAVE,
+        ],
+    },
+    D: {
+        name: 'A report card, one tab per month', pick: 'KPI Scorecard', img: KPIMultiTab,
+        short: 'A report card where each month has its own tab.',
+        desc: <>Like a report card, except each month gets {b('its own tab')}, often with a weekly breakdown inside (Week 1, 2, 3, 4).</>,
+        steps: [
+            st(3, 'This one takes a little more setup', <>It's worth asking whoever manages this system to help with your first one. After that, adding new months is much easier.</>, { tip: <>You can still carry on and try it yourself — the next screens show what's involved.</> }),
+            THREE_BOXES,
+            st(3, "List each month's tab", <>Instead of one tab, add each month's tab separately. Each one needs its own column meanings, because different tabs can hold different weeks. Your administrator can set up the first as a template.</>),
+            ROLES, SQUASH, SAVE,
+        ],
+    },
+    E: {
+        name: 'Several tables in one tab', pick: 'One tab', img: MultipleTables,
+        short: 'One tab with several tables stacked below each other.',
+        desc: <>You have just {b('one tab')}, but inside it are {b('several separate tables')} stacked down the page — for example a KPI table, a gap, a devices table, a gap, then a subscriptions table.</>,
+        steps: [
+            st(3, 'Tick the stacked-tables box', <>Before anything else, tick {b('"📑 This sheet contains multiple tables stacked in one tab"')}. It only appears when you're making a brand-new connection, not when editing one.</>),
+            st(3, 'Fill in the Sheet ID and Tab Name once', <>They're shared by every table, so you only type them one time.</>),
+            st(3, 'Add each table', <>
+                For each table, click {b('+ Add another table')} and fill in its own Page, Module key, Label, Header
+                Row and Range — each starts on a different row. Example: a table starting at row 49, columns A to
+                H, has Header Row <C>49</C> and Range <C>A49:H82</C> (stop one row before the next table).
+            </>),
+            st(3, 'Detect the columns and save', <>Click {b('🔍 Detect columns')} for each table, check the guessed names, then save. All your tables are saved as separate connections at once.</>),
+        ],
+    },
 };
 
-// ── Accordion (native <details>/<summary>) ──────────────────────────
-const accordionCard = {
-    border: '2px solid var(--border, #E0E4EA)', borderRadius: 12,
-    marginBottom: 14, background: '#fff', overflow: 'hidden',
-};
-const accordionCardPurple = { ...accordionCard, borderColor: '#D2B4DE' };
-const accordionSummary = {
-    padding: '16px 20px', cursor: 'pointer', listStyle: 'none',
-    display: 'flex', alignItems: 'center', gap: 12,
-};
-const accordionBody = { padding: '0 20px 20px', scrollMarginTop: 24 };
-const typeLabel = {
-    display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#fff',
-    background: '#117A65', padding: '3px 10px', borderRadius: 99, flexShrink: 0,
-};
-const typeLabelPurple = { ...typeLabel, background: '#6C3483' };
-const summaryTitle = { fontSize: 15, fontWeight: 800, color: 'var(--navy, #1B2631)', flex: 1 };
-const chevron = { fontSize: 12, color: 'var(--muted, #7F8C9A)', flexShrink: 0 };
+const openApp = k => st(2, 'Open the connection window', <>
+    In the app, go to {b('Settings')} and click {b('+ Add Connection')}. A small window with pictures appears.
+    Click the one called {b(`"${TYPES[k].pick}"`)}.
+    {k === 'E' && <> (This kind of sheet is a tick-box inside the form, not a picture of its own — that's the first step next.)</>}
+    {k === 'D' && <> (If you see a picture mentioning multiple tabs for report cards, pick that instead.)</>}
+</>, { tip: <>Keep this guide open in one tab and Settings in another, and flip between them.</> });
 
-const imgFrame = {
-    border: '1px dashed var(--border, #E0E4EA)', borderRadius: 8,
-    padding: 8, background: '#FAFBFC', marginTop: 10, marginBottom: 10,
-};
-const imgStyle = {
-    height: '100%', maxWidth: 1220, display: 'block', borderRadius: 6,
-    // Screenshots of spreadsheets are mostly thin text and grid lines — the
-    // browser's default smoothing filter (meant for photos) blurs that kind
-    // of flat, high-contrast content when shrinking it. These hints ask the
-    // browser to favor sharp edges over smoothing when scaling instead.
-    imageRendering: '-webkit-optimize-contrast',
-    msInterpolationMode: 'nearest-neighbor',
-};
-const imgCaption = { fontSize: 11, color: 'var(--muted, #7F8C9A)', marginTop: 6, fontStyle: 'italic' };
+// Report-card sheets hold every KPI mixed together, so narrowing down comes first.
+const FILTER = [
+    st(4, 'Narrow it down first', <>
+        Scroll to {b('"Filter to specific KPIs"')} — always do this for report cards. Your connection holds
+        every KPI mixed together, and without this a chart adds unrelated numbers (like a percentage and a
+        headcount) into one meaningless total.
+    </>),
+    st(4, 'Pick the category and metric', <>Choose a {b('Category')} (optional) to shorten the list, then the exact {b('Metric')}. They come straight from your sheet. KPI Cards and Line Charts allow only one metric.</>),
+];
 
-const trouble = {
-    border: '1px solid #F1948A', background: '#FEECEC', borderRadius: 10,
-    padding: '14px 18px', marginBottom: 12,
+const VIZ = {
+    kpi: { em: '🔢', t: 'One big number', d: 'Like "Total Drug Stock Value".', steps: [
+        st(4, 'Name it and pick the field', <>Give it a {b('KPI Label')}, for example "Total Drug Stock Value". Then choose the {b('Field to aggregate')} — for report cards this is almost always <C>value</C>.</>),
+        st(4, 'Choose how numbers combine', <>{b('Sum')} adds rows up, {b('Average')} finds the middle, {b('Maximum / Minimum')} picks the highest or lowest, and {b('Latest')} shows just the most recent.</>, { warn: <>For report cards, "Latest" is usually right — you rarely want July's number added to August's.</> }),
+        st(4, 'Pick the format', <>Choose Currency, Number or Percent for a numeric KPI.</>),
+    ] },
+    word: { em: '🔤', t: 'One word', d: 'Like a drug name instead of a number.', steps: [
+        st(4, 'Show a word as a KPI card', <>Some KPIs hold words — "Most prescribed drug" holds a drug name. Choose {b('KPI Card')} as the visualization type.</>),
+        st(4, 'Two settings that matter', <>Set {b('Aggregation')} to {b('"Latest"')} and {b('Format')} to {b('"Plain text"')}. Without these the card shows 0.</>, { tip: <>Want one particular month? Once the card is on the page, use its own month dropdown in the corner. Want every month at once? Use a Table instead.</> }),
+    ] },
+    plot: { em: '📈', t: 'One thing, plotted', d: 'A bar, line or pie chart.', steps: [
+        st(4, 'Bar or line chart', <>Pick an {b('X Axis')} and a {b('Y Axis')}. For a report-card trend across months, X is usually <C>_period</C> and Y is usually <C>value</C>.</>),
+        st(4, 'Pie chart', <>Pick a {b('Category')} field and a {b('Value')} field. The pie shows how the total splits into slices.</>),
+        st(4, 'Extra options for bar charts', <>Bar charts also have Orientation, Sort order, Limit and an optional Target line. Try a few and watch the preview change.</>),
+    ] },
+    table: { em: '📋', t: 'A plain list of rows', d: 'Easy to read every value.', steps: [
+        st(4, 'Choose what to show', <>Pick which {b('Columns')} to show — leave it blank to show everything. Then choose how many rows show at once. The page also has "Load more" and "Show all".</>, { tip: <>For report cards, a Table is the easiest way to see every month's value for one KPI at a glance.</> }),
+    ] },
+    grouped: { em: '📊', t: 'Compare several things', d: 'Grouped bars or lines side by side.', steps: [
+        st(4, 'Pick the X Axis', <>Usually <C>_period</C> for a month-by-month view.</>),
+        st(4, 'Add one series per thing', <>Each series becomes one bar or line. Give each a label and a colour.</>, { warn: <>Comparing report-card sub-values (Pharmacist / Porter / Admin)? Filter to that KPI first, then click {b('🪄 Auto-split into one series per value')}. It sets up every series and colour in one click. To adjust one, use its "Split value" dropdown.</> }),
+    ] },
 };
-const troubleQ = { fontWeight: 700, color: '#C0392B', fontSize: 13.5, marginBottom: 6 };
-const troubleA = { fontSize: 13, color: 'var(--text, #1B2631)' };
 
-// Small helper so every accordion header looks identical without repeating
-// the same style props on every single <summary> below.
-function AccordionHeader({ badge, badgeStyle = typeLabel, title }) {
-    return (
-        <summary style={accordionSummary}>
-            <span style={badgeStyle}>{badge}</span>
-            <span style={summaryTitle}>{title}</span>
-            <span style={chevron}>▾ click to expand</span>
-        </summary>
+const PROBLEMS = [
+    ['The page still says nothing is connected', <>Check that "Test & Load" turned green. Red means the sheet isn't shared properly, or the link was copied wrong — go back to Part 1.</>],
+    ["It says the tab wasn't found, but I can see it", <>Tab names must match {b('exactly')}, capitals included. Copy the name straight from the tab at the bottom of your Google Sheet.</>],
+    ['A number looks like 04:04:01:01 or 171---78', <>Make sure the column next to your measure (the one with small helper text) was given a role in "Show me the columns" — that's where the split labels usually live. For another separator, describe that row in the "Advanced" section.</>],
+    ['My KPI card shows 0, but the value is a word', <>Set Aggregation to {b('Latest')} and Format to {b('Plain text')}.</>],
+    ['Every bar in my grouped chart is the same number', <>Each series needs a "Split value". Delete the series, filter to the exact category and metric, then click {b('🪄 Auto-split into one series per value')}.</>],
+    ['My chart mixes numbers from different KPIs', <>Use "Filter to specific KPIs" to pick a category and/or exact metric. Without it, unrelated numbers get added together.</>],
+    ['It saved, but landed in the wrong tab or "Uncategorised"', <>Open the connection again and check both {b('Page')} and {b('Module key')}. The Module key decides which tab it lands in.</>],
+    ["A chart I saved isn't showing anywhere", <>Look for a grey "Hidden" tag beside it. The small eye icon switches a chart on or off without deleting it.</>],
+];
+
+const PARTS = ['Share your sheet', "Choose your sheet's shape", 'Set up the connection', 'Add a chart'];
+
+// The path depends on the reader's two answers (sheet shape, then what to show).
+function buildScreens(sheet, viz) {
+    const s = [
+        { kind: 'intro', part: 0 },
+        st(1, 'Share your sheet', <>Open your Google Sheet and click the blue {b('Share')} button (top-right corner). Add the special email address IT department gave you (rhv-hospital-dashboard@trekking-493220.iam.gserviceaccount.com), and give it at least {b('"Viewer"')} access.</>, { warn: <>Nothing else will work until this is done — even if every other step is perfect.</> }),
+        st(1, "Copy your sheet's web address", <>With the sheet open, click the address bar at the top of your browser and copy the whole address. It looks like <C>https://docs.google.com/spreadsheets/d/......</C></>, { tip: <>Keep it handy — you'll paste it soon.</> }),
+        { kind: 'pickSheet', part: 2 },
+    ];
+    if (!sheet) return s;
+    const T = TYPES[sheet];
+    s.push(
+        st(2, `You picked: ${T.name}`, T.desc, { img: T.img, cap: 'Does your sheet look like this? If not, press Back and choose another.' }),
+        openApp(sheet), ...T.steps, { kind: 'pickViz', part: 4 },
     );
+    if (!viz) return s;
+    if (sheet === 'C' || sheet === 'D') s.push(...FILTER);
+    s.push(...VIZ[viz].steps, { kind: 'done', part: 5 });
+    return s;
 }
 
 export default function ConnectionGuidePage() {
-    const [zoomedImg, setZoomedImg] = useState(null);
-    const pulseKeyframes = `
-    @keyframes zoomPulse {
-    0%, 100% { opacity: 0.9; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.06); }
-    }
-    `;
+    const [i, setI] = useState(0);
+    const [dir, setDir] = useState('fwd');
+    const [sheet, setSheet] = useState(null);
+    const [viz, setViz] = useState(null);
+    const [help, setHelp] = useState(false);
+    const [prob, setProb] = useState(null);
+    const [zoom, setZoom] = useState(null);
 
-    <style>{pulseKeyframes}</style>
+    useEffect(() => {
+        if (!zoom) return;
+        const k = e => e.key === 'Escape' && setZoom(null);
+        window.addEventListener('keydown', k);
+        return () => window.removeEventListener('keydown', k);
+    }, [zoom]);
+
+    const screens = buildScreens(sheet, viz);
+    const sc = screens[Math.min(i, screens.length - 1)];
+    const atEnd = sc.kind === 'done';
+    const needsPick = (sc.kind === 'pickSheet' && !sheet) || (sc.kind === 'pickViz' && !viz);
+
+    const go = d => { setDir(d > 0 ? 'fwd' : 'back'); setI(x => Math.max(0, x + d)); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const restart = () => { setDir('back'); setI(0); setSheet(null); setViz(null); };
+
+    // Position inside the current part, e.g. "screen 2 of 5"
+    const inPart = screens.filter(s => s.part === sc.part);
+    const pos = inPart.indexOf(sc) + 1;
+
+    const pickCards = (items, cur, set, withImg) => (
+        <div className="gz-choices">
+            {Object.entries(items).map(([k, o]) => (
+                <div key={k} role="button" tabIndex={0} className={`gz-choice${cur === k ? ' sel' : ''}`}
+                    onClick={() => set(k)} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), set(k))}>
+                    {withImg ? <span className="pic"><Image src={o.img} alt={`Example of ${o.name}`} /></span> : <span className="em">{o.em}</span>}
+                    <span className="t">{withImg ? o.name : o.t}</span>
+                    <span className="d">{withImg ? o.short : o.d}</span>
+                    {withImg && (
+                        <button type="button" className="gz-look" onClick={e => { e.stopPropagation(); setZoom({ src: o.img, label: o.name }); }}>
+                            🔍 Look bigger
+                        </button>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+
+    let content;
+    if (help) {
+        content = (
+            <div className="gz-card fwd" key="help">
+                <h1>🆘 What are you seeing?</h1>
+                {prob === null ? <>
+                    <p>Tap the one that matches, and we'll show you the fix.</p>
+                    {PROBLEMS.map(([q], n) => <button key={n} className="gz-prob" style={{ animationDelay: `${n * .05}s` }} onClick={() => setProb(n)}>{q}</button>)}
+                </> : <>
+                    <p style={{ fontWeight: 800, color: '#A93226' }}>{PROBLEMS[prob][0]}</p>
+                    <div className="gz-ans">{PROBLEMS[prob][1]}</div>
+                    <div className="gz-nav"><button className="gz-btn ghost" onClick={() => setProb(null)}>← Other problems</button><span /></div>
+                </>}
+                <p className="gz-hint" style={{ marginTop: 22 }}>Still stuck? Contact IT department, and show them a screenshot of what you see.</p>
+                <div className="gz-nav" style={{ justifyContent: 'center' }}>
+                    <button className="gz-btn" onClick={() => { setHelp(false); setProb(null); }}>← Back to the guide</button>
+                </div>
+            </div>
+        );
+    } else if (sc.kind === 'intro') {
+        content = (
+            <div className={`gz-card ${dir}`} key="intro">
+                <span className="gz-emoji">📖</span>
+                <h1>Let's connect your Google Sheet</h1>
+                <p>We'll go one small step at a time, in plain everyday language. You can't get lost — press {b('Back')} whenever you like.</p>
+                <p>It takes about 10 minutes. You'll need:</p>
+                <p style={{ margin: 0 }}>📄 Your Google Sheet<br />✉️ The email address IT department gave you (rhv-hospital-dashboard@trekking-493220.iam.gserviceaccount.com)</p>
+                <div className="gz-note gz-tip"><span>💡</span><span>Keep this guide open in one tab and your Settings in another, and flip between them as you go.</span></div>
+            </div>
+        );
+    } else if (sc.kind === 'step') {
+        content = (
+            <div className={`gz-card ${dir}`} key={i}>
+                {sc.img && <figure className="gz-pic"><div className="w"><Image src={sc.img} alt={sc.title} /></div><div className="gz-cap">{sc.cap}</div></figure>}
+                <h1>{sc.title}</h1>
+                <p>{sc.body}</p>
+                {sc.tip && <div className="gz-note gz-tip"><span>💡</span><span>{sc.tip}</span></div>}
+                {sc.warn && <div className="gz-note gz-warn"><span>⭐</span><span>{sc.warn}</span></div>}
+            </div>
+        );
+    } else if (sc.kind === 'pickSheet') {
+        content = (
+            <div className={`gz-card ${dir}`} key="ps">
+                <h1>Which picture looks most like your sheet?</h1>
+                <p>Tap the closest match. Not sure? Tap {b('🔍 Look bigger')} to compare it with your own sheet.</p>
+                {pickCards(TYPES, sheet, k => { if (k !== sheet) setViz(null); setSheet(k); }, true)}
+            </div>
+        );
+    } else if (sc.kind === 'pickViz') {
+        content = (
+            <div className={`gz-card ${dir}`} key="pv">
+                <h1>What would you like to show on the page?</h1>
+                <p>Saving a connection only brings your data in — nothing appears until you add a chart or card. Under your saved connection in Settings, click {b('+ Add')}, then choose one of these.</p>
+                {pickCards(VIZ, viz, setViz, false)}
+                <div className="gz-note gz-tip"><span>💡</span><span>The form has a live preview at the bottom. If it looks wrong or empty, something above needs a small change.</span></div>
+            </div>
+        );
+    } else {
+        content = (
+            <div className={`gz-card ${dir}`} key="done" style={{ textAlign: 'center' }}>
+                <span className="gz-emoji big">🎉</span>
+                <h1>You're all set!</h1>
+                <p>Save your chart, then open the page to see it. If something isn't right, the help button will sort it out.</p>
+                <div className="gz-nav" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button className="gz-btn ghost" onClick={restart}>↺ Start over</button>
+                    <button className="gz-btn" onClick={() => setHelp(true)}>🆘 Something's wrong</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div style={page}>
-            <h1 style={h1}>📖 How to Connect a Google Sheet — Step by Step</h1>
-            <p style={intro}>
-                This page walks you through connecting a Google Sheet and building your first chart, from
-                start to finish, in plain everyday language — no computer knowledge needed. Keep this tab
-                open, and switch back and forth to your Settings tab as you follow along. Sections below are
-                collapsed — click one to open it, or use a jump link to open the right one automatically.
-            </p>
+        <div className="gz">
+            <style>{css}</style>
 
-            {/* ── Jump nav ───────────────────────────────────────── */}
-            <div style={navBox}>
-                <div style={navTitle}>Jump to a section</div>
-                <a href="#before-you-start" style={navLink}>① Share your sheet (do this first, no matter what)</a>
-                <a href="#wizard-step" style={navLink}>② Click "+ Add Connection" — pick your sheet's shape</a>
-                <a href="#which-type" style={navLink}>③ Follow the steps for your shape</a>
-                <a href="#type-one-tab" style={navLink}>&nbsp;&nbsp;&nbsp;→ A. A simple list (One Tab)</a>
-                <a href="#type-multi-tab" style={navLink}>&nbsp;&nbsp;&nbsp;→ B. Same list, split across tabs (Multiple Tabs)</a>
-                <a href="#type-scorecard" style={navLink}>&nbsp;&nbsp;&nbsp;→ C. A report card (KPI Scorecard)</a>
-                <a href="#type-scorecard-multi" style={navLink}>&nbsp;&nbsp;&nbsp;→ D. A report card split by month (KPI Scorecard, multiple tabs)</a>
-                <a href="#type-multi-table" style={navLink}>&nbsp;&nbsp;&nbsp;→ E. Several tables stacked in one tab (a checkbox, not a wizard option)</a>
-                <a href="#adding-visualizations" style={navLink}>④ Adding a chart or KPI card</a>
-                <a href="#viz-kpi" style={navLink}>&nbsp;&nbsp;&nbsp;→ KPI Card (one big number)</a>
-                <a href="#viz-bar-line-pie" style={navLink}>&nbsp;&nbsp;&nbsp;→ Bar / Line / Pie Chart</a>
-                <a href="#viz-table" style={navLink}>&nbsp;&nbsp;&nbsp;→ Table</a>
-                <a href="#viz-grouped" style={navLink}>&nbsp;&nbsp;&nbsp;→ Grouped Bar / Grouped Line (comparing several things)</a>
-                <a href="#viz-scorecard-filter" style={navLink}>&nbsp;&nbsp;&nbsp;→ ⭐ Scorecard: "Filter to specific KPIs"</a>
-                <a href="#viz-scorecard-split" style={navLink}>&nbsp;&nbsp;&nbsp;→ ⭐ Scorecard: splitting a squashed KPI into its own bars</a>
-                <a href="#viz-scorecard-text" style={navLink}>&nbsp;&nbsp;&nbsp;→ ⭐ Scorecard: showing a word instead of a number</a>
-                <a href="#troubleshooting" style={navLink}>⑤ Something's not showing up — help!</a>
+            <div className="gz-top">
+                <span className="gz-brand">📖 Connect a Google Sheet</span>
+                {!help && <button className="gz-help" onClick={() => setHelp(true)}>🆘 Need help?</button>}
             </div>
 
-            {/* ══════════════════════════════════════════════════════ */}
-            <section id="before-you-start" style={section}>
-                <h2 style={h2}>① Share your sheet</h2>
-                <p style={sub}>Do this before anything else — it's the one step that has to happen no matter what your sheet looks like.</p>
-
-                <div style={step}>
-                    <div style={stepNum}>1</div>
-                    <div style={stepBody}>
-                        <div style={stepTitle}>Open your Google Sheet, and click the blue "Share" button (top-right corner).</div>
-                        Add the special email address your administrator gave you, with at least "Viewer"
-                        access. This is what lets our system read your sheet — without this, nothing else in
-                        this guide will work, even if every other step is done perfectly.
-                    </div>
-                </div>
-
-                <div style={step}>
-                    <div style={stepNum}>2</div>
-                    <div style={stepBody}>
-                        <div style={stepTitle}>Copy the sheet's link.</div>
-                        Click into the address bar at the top of your browser while the sheet is open, and
-                        copy the whole web address — something like{' '}
-                        <span style={code}>https://docs.google.com/spreadsheets/d/......</span>
-                    </div>
-                </div>
-
-                <div style={tip}>
-                    💡 Once your sheet is shared and you've got the link copied, you're ready for the next
-                    step — telling the system what kind of sheet it is.
-                </div>
-            </section>
-
-            {/* ══════════════════════════════════════════════════════ */}
-            <section id="wizard-step" style={section}>
-                <h2 style={h2}>② Click "+ Add Connection" — pick your sheet's shape</h2>
-                <p style={sub}>
-                    This happens BEFORE you paste your link anywhere. Clicking <strong>+ Add Connection</strong>{' '}
-                    in Settings first shows you a small window with a few pictures, asking what your sheet
-                    looks like. Pick the one that matches — it decides which version of the connection form
-                    opens next, so everything downstream is already set up correctly for your sheet's shape.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 16 }}>
-                    {[
-                        { icon: '1️⃣', label: 'One tab', desc: 'All my data is in one sheet tab', img: NormalPic },
-                        { icon: '📅', label: 'Multiple tabs', desc: 'My data is split by month/period across tabs', img: NormalPicTabs },
-                        { icon: '📊', label: 'KPI Scorecard', desc: "One row per measurement, months running across as columns", img: KPI },
-                    ].map(opt => (
-                        <div key={opt.label} style={{ border: '2px solid var(--border, #E0E4EA)', borderRadius: 10, padding: 14, background: '#fff', minHeight: 250 }}>
-                            <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.icon}</div>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy, #1B2631)' }}>{opt.label}</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--muted, #7F8C9A)', marginTop: 2 }}>{opt.desc}</div>
-                            {opt.img && (
-                                <div
-                                    style={{ ...imgFrame, position: 'relative', cursor: 'zoom-in' }}
-                                    onClick={() => setZoomedImg({ src: opt.img, label: opt.label })}
-                                    onMouseEnter={e => {
-                                        const overlay = e.currentTarget.querySelector('.zoom-overlay');
-                                        if (overlay) overlay.style.opacity = 1;
-                                    }}
-                                    onMouseLeave={e => {
-                                        const overlay = e.currentTarget.querySelector('.zoom-overlay');
-                                        if (overlay) overlay.style.opacity = 0;
-                                    }}
-                                >
-                                    <Image
-                                        width={300}
-                                        height={200}
-                                        src={opt.img}
-                                        alt={`Example of a "${opt.label}" sheet`}
-                                        style={imgStyle}
-                                    />
-                                    {/* CTA overlay */}
-                                    <div
-                                        className="zoom-overlay"
-                                        style={{
-                                            position: 'absolute',
-                                            inset: 0,
-                                            background: 'rgba(27, 38, 49, 0.45)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: 8,
-                                            opacity: 0,
-                                            transition: 'opacity 0.15s ease',
-                                            pointerEvents: 'none',
-                                        }}
-                                    >
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            🔍 Click to enlarge
-                                        </span>
-                                    </div>
-                                    {/* Always-visible subtle badge so users know it's clickable even without hovering (mobile) */}
-                                    <div
-                                        style={{
-                                            position: 'absolute',
-                                            top: 6,
-                                            right: 6,
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: '50%',
-                                            background: 'rgba(255,255,255,0.9)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: 11,
-                                            boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-                                            animation: 'zoomPulse 2s ease-in-out infinite',
-                                        }}
-                                    >
-                                        🔍
-                                    </div>
-                                </div>
-                            )}
+            {!help && sc.part > 0 && sc.part < 5 && <>
+                <div className="gz-bar" aria-hidden="true">
+                    {PARTS.map((_, n) => (
+                        <div key={n} className={`gz-seg${n + 1 < sc.part ? ' on' : ''}`}>
+                            <i style={n + 1 === sc.part ? { width: `${(pos / inPart.length) * 100}%` } : undefined} />
                         </div>
                     ))}
                 </div>
+                <div className="gz-where">Part {sc.part} of 4: {PARTS[sc.part - 1]}{inPart.length > 1 && ` · screen ${pos} of ${inPart.length}`}</div>
+            </>}
 
-                {/* Modal */}
-                {zoomedImg && (
-                    <div
-                        onClick={() => setZoomedImg(null)}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.75)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1000,
-                            padding: 24,
-                            cursor: 'zoom-out',
-                        }}
-                    >
-                        <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                                position: 'relative',
-                                maxWidth: '90vw',
-                                maxHeight: '90vh',
-                                background: '#fff',
-                                borderRadius: 12,
-                                padding: 16,
-                                boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-                            }}
-                        >
-                            <button
-                                onClick={() => setZoomedImg(null)}
-                                style={{
-                                    position: 'absolute',
-                                    top: -14,
-                                    right: -14,
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: '50%',
-                                    border: 'none',
-                                    background: '#1B2631',
-                                    color: '#fff',
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                                }}
-                                aria-label="Close"
-                            >
-                                ✕
-                            </button>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: '#1B2631', marginBottom: 10 }}>
-                                {zoomedImg.label}
-                            </div>
-                            <Image
-                                width={900}
-                                height={600}
-                                src={zoomedImg.src}
-                                alt={`Larger view of "${zoomedImg.label}" sheet`}
-                                style={{ width: '100%', height: 'auto', maxHeight: '75vh', objectFit: 'contain', borderRadius: 8 }}
-                            />
-                        </div>
-                    </div>
-                )}
+            {content}
 
-                <div style={warn}>
-                    ⭐ Not sure which picture matches? Scroll down to Step ③ below — each type has its own
-                    full-size screenshot and a written description, which is often easier to compare against
-                    your real sheet than a small icon.
+            {!help && !atEnd && <>
+                <div className="gz-nav">
+                    <button className="gz-btn ghost" disabled={i === 0} onClick={() => go(-1)}>← Back</button>
+                    <button className={`gz-btn${needsPick ? '' : ' ready'}`} disabled={needsPick} onClick={() => go(1)}>
+                        {sc.kind === 'intro' ? "Let's start" : 'Next'} <span className="ar">→</span>
+                    </button>
                 </div>
+                {needsPick && <div className="gz-hint">Tap one of the choices above to continue.</div>}
+            </>}
+            {!help && atEnd && <div className="gz-nav"><button className="gz-btn ghost" onClick={() => go(-1)}>← Back</button><span /></div>}
 
-                <div style={tip}>
-                    💡 <strong>One more shape that ISN'T in this picture-picker:</strong> if your sheet has{' '}
-                    <em>several separate tables stacked in one tab</em> (see Type E below), you still pick{' '}
-                    <strong>"One tab"</strong> here first — that extra shape is a checkbox you tick <em>inside</em>{' '}
-                    the form afterward, not one of these four pictures.
-                </div>
-            </section>
-
-            {/* ══════════════════════════════════════════════════════ */}
-            <section id="which-type" style={section}>
-                <h2 style={h2}>③ Follow the steps for your shape</h2>
-                <p style={sub}>
-                    Click the section below matching what you picked in Step ② (or click a jump link above —
-                    it'll open the right one for you automatically).
-                </p>
-
-                {/* ── TYPE A ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TYPE A" title='A simple list — "One Tab"' />
-                    <div id="type-one-tab" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 4 }}>
-                            Your sheet has <strong>one row for every single thing</strong> — one row per purchase,
-                            one row per staff member, one row per item in stock. All of it lives in a single tab
-                            at the bottom of the screen. This is the most common type.
-                        </p>
-                        <div style={imgFrame}>
-                            <Image src={NormalPic} alt="Example of a one-tab sheet — one row per record" style={imgStyle} />
-                            <div style={imgCaption}>Example: a simple list sheet. Each row = one record.</div>
-                        </div>
-
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '18px 0 10px' }}>Steps for this type:</h4>
-
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Fill in the Label, Page, and Module key.</div>
-                                <strong>Label</strong> is just a name for your own reference (e.g. "Kitchen Stock").
-                                <strong> Page</strong> is which screen in the app this should show up on. Once you
-                                pick a page, a dropdown appears for <strong>Module key</strong> — just pick from
-                                that list, you don't need to type anything here.
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Type the exact name of your tab.</div>
-                                The little labels along the bottom of your Google Sheet.
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Set the Range and Header Row, THEN click "Test & Load."</div>
-                                <strong>Range</strong> is which part of the sheet to read — leave it as{' '}
-                                <span style={code}>A:Z</span> if your whole sheet is one table.{' '}
-                                <strong>Header Row Number</strong> is which row (counting from the very top of the
-                                sheet) has your column titles — almost always <span style={code}>1</span>. Paste
-                                your sheet's link into "Google Sheet URL or ID" and click{' '}
-                                <strong>🔌 Test & Load</strong> once these are set.
-                            </div>
-                            <div style={tip}>
-                                💡 If your real data starts partway down the sheet — say row 5 — narrow the
-                                Range to something like <span style={code}>A5:Z100</span> AND set Header Row
-                                Number to <span style={code}>5</span> to match. The system reads exactly the row
-                                you specify here, so these two numbers should always describe the same real row
-                                in your sheet.
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Check the column mapping — it's already filled in for you.</div>
-                                After Test & Load, the system reads your sheet's real column titles AND takes
-                                its best guess at what to call each one internally — you'll see both sides of
-                                "Our field name ↔ Their column" already populated. Just glance through and fix
-                                any guess that doesn't look right; you don't need to type anything from scratch
-                                unless a guess is wrong.
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>5</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Click "💾 Save Connection."</div>
-                                Next, add a chart or KPI card so the data actually shows on the page — see
-                                Step ④ below.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── TYPE B ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TYPE B" title='Same list, split across tabs — "Multiple Tabs"' />
-                    <div id="type-multi-tab" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 4 }}>
-                            Same idea as Type A (one row per thing, with column titles), but instead of one big
-                            tab, it's split up — one tab for January, one for February, and so on. The columns
-                            look the same in every tab.
-                        </p>
-                        <div style={imgFrame}>
-                            <Image src={NormalPicTabs} alt="Example of a sheet split across several tabs, one per month" style={imgStyle} />
-                            <div style={imgCaption}>Example: the same kind of table, but a separate tab per month.</div>
-                        </div>
-
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '18px 0 10px' }}>Steps for this type:</h4>
-
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Fill in Label, Page, and Module key — same as Type A.</div>
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Add each tab one at a time.</div>
-                                Type a tab's exact name — a "key" often fills itself in automatically (typing
-                                "January" fills in <span style={code}>2026-01</span>). You can also click the
-                                tab names shown under "Quick add from sheet" instead of typing.
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Set Range and Header Row Number — same meaning as Type A, applied to every tab you added.</div>
-                            </div>
-                        </div>
-
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Check the column mapping (already guessed for you), then Save — same as Type A.</div>
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── TYPE C ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TYPE C" title='A report card — "KPI Scorecard"' />
-                    <div id="type-scorecard" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 4 }}>
-                            Instead of new <strong>rows</strong> being added over time, each measurement (KPI)
-                            has exactly <strong>one row, forever</strong> — and the months run{' '}
-                            <strong>sideways</strong>, left to right, as columns (JAN, FEB, MAR...).
-                        </p>
-                        <div style={imgFrame}>
-                            <Image src={KPI} alt="Example of a KPI scorecard sheet — one row per KPI, months as columns" style={imgStyle} />
-                            <div style={imgCaption}>Example: a report-card style sheet. One row per measurement, months going across.</div>
-                        </div>
-
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '18px 0 10px' }}>Steps for this type:</h4>
-
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Fill in Label, Page, and Module key — same as before.</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Type the exact tab name.</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Answer 3 simple questions about where things sit:</div>
-                                "Which row has the category/measure labels?" (usually around row 6), "Which row
-                                does the actual KPI data start on?" (a row or two below that), and "Roughly how
-                                many KPI rows total?" (a rough guess is fine).
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Click "🔍 Show me the columns in that row."</div>
-                                This reads your actual sheet and shows exactly what's written in each column
-                                at the row you specified — no guessing.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>5</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>For each column shown, say what it is.</div>
-                                Pick one of: <strong>KPI Category</strong>, <strong>Description / Measure</strong>{' '}
-                                (required for at least one column — this names each KPI), <strong>Unit / Target
-                                text</strong>, <strong>Time period</strong> (required for at least one column),
-                                or <strong>Skip this column</strong>.
-                            </div>
-                            <div style={warn}>
-                                ⚠️ No categories in your sheet? Leave "KPI Category" unset everywhere and mark
-                                your one label column as "Description / Measure" instead — every KPI will sit
-                                under one group.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>6</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Only if you see a squashed-together cell — use the Advanced section.</div>
-                                Sometimes one month's box for one KPI holds several numbers jammed together,
-                                like <span style={code}>04:04:01:01</span>. If a column right next to your
-                                measure already lists labels separated by a colon (like "Pharmacist: Pharm.
-                                Tech.: Porter: Admin"), the system splits squashed cells like this{' '}
-                                <strong>automatically</strong> — nothing to configure. Only open "Advanced: some
-                                cells pack multiple values together" if your squashed cell uses a different
-                                separator (like <span style={code}>---</span>) or has no label column to read
-                                from — describe which category, which KPI number, the labels in order, and the
-                                separator used.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>7</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Click "💾 Save Connection."</div>
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── TYPE D ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TYPE D" title='A report card, split by month — "KPI Scorecard, multiple tabs"' />
-                    <div id="type-scorecard-multi" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 4 }}>
-                            Type C's layout (one row per KPI, months as columns) — except each month gets its{' '}
-                            <strong>own tab</strong>, often with an extra weekly breakdown inside (Week 1, Week
-                            2, Week 3, Week 4).
-                        </p>
-                        <div style={imgFrame}>
-                            <Image src={KPIMultiTab} alt="Example of a KPI scorecard split into one tab per month, each with a weekly breakdown" style={imgStyle} />
-                            <div style={imgCaption}>Example: a report-card sheet, but each month is its own tab.</div>
-                        </div>
-
-                        <div style={tip}>
-                            💡 This type takes more setup than the others — worth asking whoever manages this
-                            system to help set up the first one. After that, adding new months is simpler.
-                        </div>
-
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '18px 0 10px' }}>Steps for this type:</h4>
-
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Everything from Type C's steps 1–2 and 5–7 still applies.</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>The difference: instead of one tab, you list each month's tab separately, each with its own column meanings.</div>
-                                A different tab's columns can represent different weeks, so each month tab
-                                needs its own quick setup — this piece is worth asking your administrator to
-                                configure once as a starting template.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── TYPE E ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TYPE E" title="Several tables stacked in one tab (a checkbox, not a wizard picture)" />
-                    <div id="type-multi-table" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 4 }}>
-                            Your sheet has just <strong>one tab</strong>, but inside it there are{' '}
-                            <strong>several separate tables</strong> stacked one below another — a KPI table,
-                            then a gap, then a devices table, then a gap, then a subscriptions table.
-                        </p>
-                        <div style={imgFrame}>
-                            <Image src={MultipleTables} alt="Example of one tab containing several separate stacked tables" style={imgStyle} />
-                            <div style={imgCaption}>Example: one tab, but several distinct tables stacked at different rows.</div>
-                        </div>
-
-                        <div style={warn}>
-                            ⭐ Remember: pick <strong>"One tab"</strong> in the Step ② picture-picker for this
-                            type — this shape is a checkbox INSIDE the form, not one of the four pictures.
-                        </div>
-
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '18px 0 10px' }}>Steps for this type:</h4>
-
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Before filling anything else in, tick "📑 This sheet contains multiple tables stacked in one tab."</div>
-                                This only appears when creating a brand-new connection, not when editing an existing one.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Fill in the Sheet ID and Tab Name once — it's shared by every table below.</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>For each table, click "+ Add another table" and fill in its own block.</div>
-                                Each table needs its own Page, Module key, Label, Header Row, and Range — since
-                                each one starts on a different row of the same tab. Example: a second table
-                                starting at row 49, columns A to H — Header Row <span style={code}>49</span>,
-                                Range <span style={code}>A49:H82</span> (stop one row before the next table starts).
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Click "🔍 Detect columns" for each table, check the guessed mapping, then Save.</div>
-                                This saves all your tables as separate connections in one go.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-            </section>
-
-            {/* ══════════════════════════════════════════════════════ */}
-            <section id="adding-visualizations" style={section}>
-                <h2 style={h2}>④ Adding a chart or KPI card</h2>
-                <p style={sub}>
-                    Saving a connection just brings the data in — it won't show up on the actual page until
-                    you also add at least one chart or KPI card. Under your saved connection in Settings,
-                    click <strong>+ Add</strong> to open this form.
-                </p>
-
-                <div style={tip}>
-                    💡 There's a live preview at the bottom of this form — as you fill things in, you'll see
-                    what the chart or card will actually look like before you save it. If the preview looks
-                    wrong or empty, that's your signal something above it needs adjusting.
-                </div>
-
-                <div style={step}>
-                    <div style={stepNum}>1</div>
-                    <div style={stepBody}>
-                        <div style={stepTitle}>Pick a Visualization Type.</div>
-                        <ul style={{ paddingLeft: 18, margin: '8px 0 0' }}>
-                            <li><strong>🔢 KPI Card</strong> — one big number (or word) on its own.</li>
-                            <li><strong>📊 Bar Chart / 📈 Line Chart</strong> — one thing, compared across categories or over time.</li>
-                            <li><strong>🥧 Pie Chart</strong> — how a total splits into parts, as slices.</li>
-                            <li><strong>📋 Table</strong> — a plain list of rows.</li>
-                            <li><strong>📊 Grouped Bar / 📈 Grouped Line</strong> — several things compared side by side at once.</li>
-                        </ul>
+            {zoom && (
+                <div className="gz-modal" onClick={() => setZoom(null)} role="dialog" aria-modal="true">
+                    <div className="gz-modal-in" onClick={e => e.stopPropagation()}>
+                        <button type="button" className="gz-x" onClick={() => setZoom(null)} aria-label="Close">✕</button>
+                        <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 10 }}>{zoom.label}</div>
+                        <Image src={zoom.src} alt={`Larger view of ${zoom.label}`} />
                     </div>
                 </div>
-
-                {/* ── KPI CARD ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="KPI CARD" title="🔢 One big number (or word)" />
-                    <div id="viz-kpi" style={accordionBody}>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Give it a KPI Label</div>
-                                E.g. "Total Drug Stock Value."
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick the Field to aggregate</div>
-                                For scorecard connections this is almost always <span style={code}>value</span>.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick an Aggregation</div>
-                                <strong>Sum</strong> adds rows up, <strong>Average</strong> finds the middle,
-                                <strong> Maximum/Minimum</strong> picks highest/lowest, <strong>Latest</strong>{' '}
-                                shows just the most recent one.
-                            </div>
-                            <div style={warn}>
-                                ⭐ For scorecard connections, "Latest" is usually right — you rarely want July's
-                                number added to August's.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick a Format</div>
-                                Currency/Number/Percent for a numeric KPI, or <strong>Plain text</strong> if the
-                                value is words (see the "showing a word" section below).
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── BAR / LINE / PIE ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="BAR · LINE · PIE" title="📊📈🥧 One thing, plotted" />
-                    <div id="viz-bar-line-pie" style={accordionBody}>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Bar / Line: pick an X Axis and a Y Axis.</div>
-                                For a scorecard trend across months, X Axis is usually{' '}
-                                <span style={code}>_period</span> and Y Axis is usually{' '}
-                                <span style={code}>value</span>.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pie: pick a Category field and a Value field.</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Bar charts only: Orientation, Sort order, Limit, and an optional Target line.</div>
-                                Try a few and watch the preview update rather than guessing.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── TABLE ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="TABLE" title="📋 A plain list of rows" />
-                    <div id="viz-table" style={accordionBody}>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick which Columns to show.</div>
-                                Leave blank to show everything.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick how many rows show at once.</div>
-                                There's a "Load more"/"Show all" option on the page too.
-                            </div>
-                        </div>
-                        <div style={tip}>
-                            ⭐ For scorecards: a Table is the easiest way to see every month's value for one
-                            KPI at a glance. Combine with "Filter to specific KPIs" below.
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── GROUPED ── */}
-                <details style={accordionCard}>
-                    <AccordionHeader badge="GROUPED BAR · GROUPED LINE" title="📊📈 Comparing several things side by side" />
-                    <div id="viz-grouped" style={accordionBody}>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick an X Axis.</div>
-                                Usually <span style={code}>_period</span> for month-by-month.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Add one "series" per thing you're comparing.</div>
-                                Each becomes one bar/line — give each a label and colour.
-                            </div>
-                        </div>
-                        <div style={warn}>
-                            ⭐ Comparing scorecard sub-values (Pharmacist/Porter/Admin)? See the "splitting a
-                            squashed KPI" section below — one click sets it all up.
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── SCORECARD: FILTER ── */}
-                <details style={accordionCardPurple}>
-                    <AccordionHeader badge="⭐ SCORECARD ESSENTIAL" badgeStyle={typeLabelPurple} title='"Filter to specific KPIs" — always do this for scorecards' />
-                    <div id="viz-scorecard-filter" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 12 }}>
-                            A KPI Scorecard connection holds <strong>every single KPI mixed together</strong>.
-                            Without narrowing it down, a chart tries to combine unrelated numbers (a percentage
-                            plus a headcount) into one meaningless total.
-                        </p>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}><div style={stepTitle}>Scroll to "Filter to specific KPIs."</div></div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick a Category (optional).</div>
-                                Narrows the metric list below to just that group.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Pick the exact Metric(s).</div>
-                                Pulled directly from your real sheet. KPI Cards and Line Charts only allow one
-                                metric at a time.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── SCORECARD: SPLIT ── */}
-                <details style={accordionCardPurple}>
-                    <AccordionHeader badge="⭐ SCORECARD ESSENTIAL" badgeStyle={typeLabelPurple} title="Splitting a squashed KPI into its own bars" />
-                    <div id="viz-scorecard-split" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 12 }}>
-                            Some KPIs pack several sub-values into one cell (Pharmacist/Pharm. Tech./Porter/
-                            Admin). Compare those against each other with these steps.
-                        </p>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}><div style={stepTitle}>Pick "Grouped Bar Chart" or "Grouped Line Chart."</div></div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Use "Filter to specific KPIs" first.</div>
-                                Pick the exact category and metric before the next step.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Click "🪄 Auto-split into one series per value."</div>
-                                Reads the real sub-values from your sheet and sets up one bar/line for each,
-                                colours included — one click.
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Want to adjust one manually?</div>
-                                Use the "Split value" dropdown next to that series.
-                            </div>
-                        </div>
-                    </div>
-                </details>
-
-                {/* ── SCORECARD: TEXT ── */}
-                <details style={accordionCardPurple}>
-                    <AccordionHeader badge="⭐ SCORECARD ESSENTIAL" badgeStyle={typeLabelPurple} title="Showing a word instead of a number" />
-                    <div id="viz-scorecard-text" style={accordionBody}>
-                        <p style={{ fontSize: 13, marginBottom: 12 }}>
-                            Some KPIs aren't numbers — "Most prescribed drug" holds a drug name. Here's how to
-                            show one as a KPI card.
-                        </p>
-                        <div style={step}>
-                            <div style={stepNum}>1</div>
-                            <div style={stepBody}><div style={stepTitle}>Pick "KPI Card."</div></div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>2</div>
-                            <div style={stepBody}><div style={stepTitle}>Filter to the exact category and metric.</div></div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>3</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Set Aggregation to "Latest," Format to "Plain text."</div>
-                            </div>
-                        </div>
-                        <div style={step}>
-                            <div style={stepNum}>4</div>
-                            <div style={stepBody}>
-                                <div style={stepTitle}>Want one specific month?</div>
-                                Once on the page, use the card's own month dropdown in the corner.
-                            </div>
-                        </div>
-                        <div style={tip}>
-                            💡 Want every month's answer at once instead of just one? Use a{' '}
-                            <strong>Table</strong> instead.
-                        </div>
-                    </div>
-                </details>
-            </section>
-
-            {/* ══════════════════════════════════════════════════════ */}
-            <section id="troubleshooting" style={section}>
-                <h2 style={h2}>⑤ Something's not showing up — help!</h2>
-                <p style={sub}>Find the situation that matches what you're seeing, and try the fix listed under it.</p>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"I saved everything but the page still says nothing's connected."</div>
-                    <div style={troubleA}>
-                        Check that "Test & Load" turned green. A red result means the sheet isn't shared
-                        correctly, or the link was copied wrong — see Step ① above.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"It says the tab wasn't found, but I can see the tab in my sheet."</div>
-                    <div style={troubleA}>
-                        Tab names have to match <strong>exactly</strong>, capital letters included. Copy the
-                        name directly from the tab label at the bottom of your Google Sheet.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"One of my KPI numbers looks like '04:04:01:01' or '171---78' instead of splitting apart."</div>
-                    <div style={troubleA}>
-                        Make sure the column next to your measure (the one with small helper text) was given a
-                        role during "Show me the columns" — that's usually where the split labels live. If the
-                        values are separated by something other than a colon, describe that row in the
-                        "Advanced" section — see Type C above.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"My KPI card shows '0' but the actual value is a word, like a drug name."</div>
-                    <div style={troubleA}>
-                        Set "Aggregation" to <strong>Latest</strong> and "Format" to <strong>Plain text</strong> —
-                        see "showing a word instead of a number" above.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"I made a Grouped Bar/Line chart to compare things like Pharmacist vs. Porter, but every bar shows the exact same number."</div>
-                    <div style={troubleA}>
-                        Each series needs a "Split value" set — otherwise every series just reads the same
-                        overall number. Delete the series, filter to the exact category/metric first, then
-                        click <strong>"🪄 Auto-split into one series per value."</strong>
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"My scorecard chart is mixing numbers from completely different KPIs together."</div>
-                    <div style={troubleA}>
-                        Use "Filter to specific KPIs" to pick a category and/or exact metric — without it, a
-                        chart adds unrelated numbers together, which is never meaningful.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"My connection saved, but it's sitting in the wrong tab of the page, or under 'Uncategorised.'"</div>
-                    <div style={troubleA}>
-                        Open the connection again and check both <strong>Page</strong> and{' '}
-                        <strong>Module key</strong> — Module key controls which internal tab it lands in.
-                    </div>
-                </div>
-
-                <div style={trouble}>
-                    <div style={troubleQ}>"A chart I made isn't showing up anywhere, even though I saved it."</div>
-                    <div style={troubleA}>
-                        Check for a grayed-out "Hidden" tag next to it — there's a small eye icon that toggles
-                        a chart on/off without deleting it.
-                    </div>
-                </div>
-            </section>
-
-            <div style={{ ...tip, textAlign: 'center', marginTop: 40 }}>
-                Still stuck after trying the steps above? Reach out to whoever manages this system for you —
-                bring a screenshot of exactly what you're seeing, it makes it much faster to help.
-            </div>
+            )}
         </div>
     );
 }

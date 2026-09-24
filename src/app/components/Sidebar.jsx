@@ -1,18 +1,20 @@
 'use client';
- 
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { getAllowedPages, hasAccess } from '../dashboard/lib/permissions';
 import styles from '../styles/Sidebar.module.css';
- 
+
 const NAV = [
   { section: 'Overview' },
   { href:'/dashboard/overview',      icon:'📊', label:'Dashboard',         badge: null },
- 
+
   { section: 'Revenue' },
   { href:'/dashboard/revenue',       icon:'💰', label:'Revenue Streams',   badge: null },
   { href:'/dashboard/weekly',        icon:'📅', label:'Weekly / Periodic', badge: null },
   { href:'/dashboard/deptanalysis',  icon:'🏥', label:'Dept Analysis',     badge: null },
- 
+
   { section: 'Financials' },
   { href:'/dashboard/expenses',      icon:'💸', label:'Expenditures',      badge: null },
   { href:'/dashboard/debtors',       icon:'🏦', label:'Debtors',           badge: '⚠' },
@@ -22,7 +24,7 @@ const NAV = [
   { href:'/dashboard/bankrec',       icon:'🔗', label:'Bank Reconciliation',badge: null },
   { href:'/dashboard/budget',        icon:'🎯', label:'Budget vs Actual',  badge: null },
   { href:'/dashboard/finstmt',       icon:'📑', label:'Financial Statements',badge: null },
- 
+
   { section: 'Operations' },
   { href:'/dashboard/it',            icon:'💻', label:'IT', badge: null },
   { href:'/dashboard/hr',            icon:'👥', label:'HR', badge: null },
@@ -32,7 +34,7 @@ const NAV = [
   { href:'/dashboard/pharmacy',      icon:'💊', label:'Pharmacy',          badge: null },
   { href:'/dashboard/cssd',          icon:'♻️', label:'CSSD',              badge: null },
   { href:'/dashboard/kitchen',       icon:'🍽️', label:'Kitchen Mgmt',     badge: null },
- 
+
   { section: 'Procurement' },
   { href:'/dashboard/p2p',           icon:'🔄', label:'Procure-to-Pay',    badge: null },
   { href:'/dashboard/requisition',   icon:'📝', label:'New Requisition',   badge: null },
@@ -43,25 +45,59 @@ const NAV = [
   { href:'/dashboard/vendors',       icon:'🚚', label:'Vendors / SRV',     badge: null },
   { href:'/dashboard/assets',        icon:'🏗',  label:'Asset Register',    badge: null },
   { href:'/dashboard/payables',      icon:'💳', label:'Payables',          badge: null },
- 
+
   { section: 'Communication' },
   { href:'/dashboard/approvals',     icon:'✅', label:'Approvals',         badge: '3' },
   { href:'/dashboard/notifications', icon:'🔔', label:'Notifications',     badge: '6' },
   { href:'/dashboard/audittrail',    icon:'📋', label:'Audit Trail',       badge: null },
- 
+
   { section: 'Reports' },
   { href:'/dashboard/kpi',           icon:'🎯', label:'KPI Scorecard',     badge: null },
   { href:'/dashboard/pharmkpi',      icon:'💊', label:'Pharmacy KPIs',     badge: null },
   { href:'/dashboard/prockpi',       icon:'📦', label:'Procurement KPIs',  badge: null },
   { href:'/dashboard/archive',       icon:'🗃',  label:'Archive',           badge: null },
- 
+
   { section: 'Admin' },
   { href:'/dashboard/settings',      icon:'⚙',  label:'Settings',          badge: null },
 ];
- 
+
+// Filters the flat NAV array (sections + items mixed together) down to
+// only what the given allowedPages permits. A section header is kept
+// ONLY if at least one item under it survives the filter — otherwise
+// you'd end up with an empty "Procurement" heading and nothing beneath
+// it, which looks broken rather than just "not applicable to you."
+function filterNav(allowedPages) {
+    const visible = [];
+    let pendingSection = null;
+
+    NAV.forEach(item => {
+        if (item.section) {
+            pendingSection = item; // hold it — only pushed once we know it has a visible child
+            return;
+        }
+        const slug = item.href.split('/').pop();
+        if (!hasAccess(allowedPages, slug)) return;
+
+        if (pendingSection) {
+            visible.push(pendingSection);
+            pendingSection = null;
+        }
+        visible.push(item);
+    });
+
+    return visible;
+}
+
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
- 
+
+  // Lazy init reads sessionStorage once, on first render — Sidebar only
+  // ever mounts client-side (the dashboard layout gates rendering until
+  // its own auth check finishes), so there's no server/client mismatch
+  // to worry about here.
+  const [allowedPages] = useState(() => getAllowedPages());
+  const visibleNav = filterNav(allowedPages);
+
   return (
     <>
       {/* Overlay (mobile) */}
@@ -70,9 +106,9 @@ export default function Sidebar({ isOpen, onClose }) {
         onClick={onClose}
         aria-hidden="true"
       />
- 
+
       <nav className={`${styles.sidebar} ${isOpen ? styles.open : ''}`} aria-label="Main navigation">
-        {NAV.map((item, i) => {
+        {visibleNav.map((item, i) => {
           if (item.section) {
             return (
               <div key={`sec-${i}`} className={styles.section}>
@@ -80,9 +116,9 @@ export default function Sidebar({ isOpen, onClose }) {
               </div>
             );
           }
- 
+
           const isActive = pathname === item.href || (item.href !== '/overview' && pathname.startsWith(item.href));
- 
+
           return (
             <Link
               key={item.href}

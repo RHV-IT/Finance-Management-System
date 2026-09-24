@@ -1073,14 +1073,14 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
 
     return (
         <div>
-            {onRestartWizard && (
+            {/*onRestartWizard && (
                 <button onClick={onRestartWizard} style={{
                     background: 'none', border: 'none', color: 'var(--teal)', fontSize: 11,
                     cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: 14,
                 }}>
                     ← Not sure this is the right mode? Answer the wizard again
                 </button>
-            )}
+            )*/}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <Field label={multiTable ? 'ID prefix (each table gets its own suffix)' : 'ID (unique slug, no spaces)'}>
                     <input value={form.id} onChange={e=>setField('id',e.target.value)}
@@ -1101,6 +1101,15 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                             <input value={form.label} onChange={e=>setField('label',e.target.value)}
                                 placeholder="SIV Issues" style={iStyle} />
                         </Field>
+                        
+                        <Field label="Module key">
+                            <ModulePicker
+                                page={form.feeds?.[0]?.page}
+                                value={form.module}
+                                onChange={v => setField('module', v)}
+                                error={errors.module}
+                            />
+                        </Field>
 
                         <Field label="Page this feeds" span>
                             <select value={form.feeds?.[0]?.page||''}
@@ -1116,15 +1125,6 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                                 <option value="">Select page…</option>
                                 {PAGES.map(p=><option key={p} value={p}>{p}</option>)}
                             </select>
-                        </Field>
-
-                        <Field label="Module key">
-                            <ModulePicker
-                                page={form.feeds?.[0]?.page}
-                                value={form.module}
-                                onChange={v => setField('module', v)}
-                                error={errors.module}
-                            />
                         </Field>
 
                         <Field label="Section / tab within that page (optional label)" span>

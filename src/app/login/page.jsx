@@ -1,54 +1,62 @@
 'use client';
- 
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../styles/Login.module.css';
+import { useDepartments } from '../dashboard/lib/useDepartments';
 import { warmConnectionsCache } from '../dashboard/lib/useConfig';
- 
-const ROLES = [
-  { id:'admin',       icon:'👑', name:'Management / Admin',   desc:'Full access · All modules',          pin:'0000' },
-  { id:'revenue',     icon:'💰', name:'Revenue / Billing',    desc:'Revenue, debtors, cashbook',          pin:'1111' },
-  { id:'store',       icon:'📦', name:'Store Unit',           desc:'Inventory, vendors, assets',          pin:'2222' },
-  { id:'payables',    icon:'💳', name:'Payables Unit',        desc:'Supplier invoices, payments',         pin:'3333' },
-  { id:'procurement', icon:'🛒', name:'Procurement Unit',     desc:'Purchase orders, requests',           pin:'4444' },
-  { id:'pharmacy',    icon:'💊', name:'Pharmacy Unit',        desc:'Drug usage, stock, requests',         pin:'5555' },
-  { id:'lab',         icon:'🧪', name:'Laboratory Unit',      desc:'Reagents, test kits requests',        pin:'6666' },
-  { id:'radiology',   icon:'🩻', name:'Radiology Unit',       desc:'Contrast media, consumables',         pin:'7777' },
-  { id:'cssd',        icon:'♻️', name:'CSSD Unit',            desc:'Sterilization, packs, KPIs',          pin:'9999' },
-  { id:'coo',         icon:'📋', name:'COO',                  desc:'Full access · 1st-level approval',    pin:'2020' },
-  { id:'ceo',         icon:'👔', name:'CEO',                  desc:'Full access · final approval',        pin:'3030' },
-];
- 
+import styles from '../styles/Login.module.css';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState(null);
+  const { departments, loading, error, reload } = useDepartments();
+
+  const [selectedDept, setSelectedDept] = useState(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
-  const [error, setError] = useState('');
- 
-  const handleRoleClick = (role) => {
-    setSelectedRole(role);
-    setError('');
+  const [loginError, setLoginError] = useState('');
+
+  const handleDeptClick = (dept) => {
+    setSelectedDept(dept);
+    setLoginError('');
     setPin('');
   };
- 
+
   const handleLogin = () => {
-    if (!selectedRole) { setError('Please select your role first.'); return; }
-    if (pin.length !== 4) { setError('Enter your 4-digit PIN.'); return; }
-    if (pin !== selectedRole.pin) {
-      setError('Incorrect PIN. Try again.');
+    if (!selectedDept) { setLoginError('Please select your department first.'); return; }
+    if (pin.length !== 4) { setLoginError('Enter your 4-digit PIN.'); return; }
+    if (pin !== selectedDept.pin) {
+      setLoginError('Incorrect PIN. Try again.');
       setPin('');
       return;
     }
-    // Store session (in real app: use proper auth)
+
+    // Store the whole permission shape now, not just the id — the sidebar
+    // and the dashboard route guard both need allowedPages/allowedConnections/
+    // canManagePermissions, and reading them straight from sessionStorage
+    // means neither has to fetch /api/config/departments again just to
+    // answer "can this person see page X." The PIN itself is deliberately
+    // NOT stored here — nothing after login needs it again.
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('rhv_role', selectedRole.id);
-      sessionStorage.setItem('rhv_role_label', selectedRole.name);
+      sessionStorage.setItem('rhv_role', selectedDept.id);
+      sessionStorage.setItem('rhv_role_label', selectedDept.name);
+      sessionStorage.setItem('rhv_allowed_pages', JSON.stringify(selectedDept.allowedPages || []));
+      sessionStorage.setItem('rhv_allowed_connections', JSON.stringify(selectedDept.allowedConnections || []));
+      sessionStorage.setItem('rhv_can_manage_permissions', selectedDept.canManagePermissions ? '1' : '0');
     }
+
     warmConnectionsCache();
-    router.push('/dashboard/overview');
+
+    // Send them to a page they can actually see, not blindly to Overview —
+    // this was the actual source of "logs in but lands somewhere they
+    // can't access": Overview was hardcoded here regardless of whether
+    // 'overview' was ever in this department's allowedPages.
+    const pages  = selectedDept.allowedPages || [];
+    const target = pages.includes('*') || pages.length === 0
+        ? '/dashboard/overview' // wildcard → Overview is always valid; empty → nothing else to send them to either, so the layout's own guard (see below) will show the "no pages assigned" screen instead
+        : `/dashboard/${pages[0]}`;
+    router.push(target);
   };
- 
+
   return (
     <div className={styles.screen}>
       <div className={styles.card}>
@@ -57,69 +65,94 @@ export default function LoginPage() {
         </div>
         <h1 className={styles.title}>RHV Hospital</h1>
         <p className={styles.sub}>Enterprise Resource Planning · Secure Login</p>
- 
-        <div className={styles.rolesGrid}>
-          {ROLES.map(role => (
-            <div
-              key={role.id}
-              className={`${styles.roleItem} ${selectedRole?.id === role.id ? styles.selected : ''}`}
-              onClick={() => handleRoleClick(role)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && handleRoleClick(role)}
-            >
-              <span className={styles.roleIcon}>{role.icon}</span>
-              <div>
-                <div className={styles.roleName}>{role.name}</div>
-                <div className={styles.roleDesc}>{role.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
- 
-        {selectedRole && (
-          <div className={styles.selectedBanner}>
-            ✓ Role selected: {selectedRole.name}
+
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#7F8C9A', fontSize: 12 }}>
+            ⏳ Loading departments…
           </div>
         )}
- 
-        <p className={styles.step}>
-          <strong>Step 1</strong> Click a role above &nbsp;·&nbsp;
-          <strong>Step 2</strong> Enter your 4-digit PIN &nbsp;·&nbsp;
-          <strong>Step 3</strong> Click Login
-        </p>
- 
-        <div className={styles.pinRow}>
-          <input
-            type={showPin ? 'text' : 'password'}
-            className={styles.pinInput}
-            maxLength={4}
-            placeholder="PIN"
-            value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0,4))}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-          />
-          <button
-            className={styles.pinToggle}
-            onClick={() => setShowPin(s => !s)}
-            type="button"
-            aria-label="Toggle PIN visibility"
-          >
-            {showPin ? '🙈' : '👁'}
-          </button>
-        </div>
- 
-        <button className={styles.loginBtn} onClick={handleLogin}>
-          Login →
-        </button>
- 
-        {error && <div className={styles.error}>{error}</div>}
- 
-        <p className={styles.hint}>
-          Default PINs — Admin:0000 · Revenue:1111 · Store:2222 · Payables:3333<br />
-          Procurement:4444 · Pharmacy:5555 · Lab:6666 · Radiology:7777 · CSSD:9999<br />
-          COO:2020 · CEO:3030
-        </p>
+
+        {error && (
+          <div style={{ textAlign: 'center', padding: '16px', color: '#C0392B', fontSize: 12 }}>
+            Could not load departments: {error}
+            <button onClick={reload} style={{ display: 'block', margin: '8px auto 0', background: 'none', border: 'none', color: '#117A65', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            <div className={styles.rolesGrid}>
+              {departments.map(dept => (
+                <div
+                  key={dept.id}
+                  className={`${styles.roleItem} ${selectedDept?.id === dept.id ? styles.selected : ''}`}
+                  onClick={() => handleDeptClick(dept)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => e.key === 'Enter' && handleDeptClick(dept)}
+                >
+                  <span className={styles.roleIcon}>{dept.icon}</span>
+                  <div>
+                    <div className={styles.roleName}>{dept.name}</div>
+                    <div className={styles.roleDesc}>
+                      {dept.allowedPages?.includes('*')
+                        ? 'Full access · All modules'
+                        : `${(dept.allowedPages || []).length} page${(dept.allowedPages || []).length === 1 ? '' : 's'}`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {selectedDept && (
+              <div className={styles.selectedBanner}>
+                ✓ Department selected: {selectedDept.name}
+              </div>
+            )}
+
+            <p className={styles.step}>
+              <strong>Step 1</strong> Click your department above &nbsp;·&nbsp;
+              <strong>Step 2</strong> Enter your 4-digit PIN &nbsp;·&nbsp;
+              <strong>Step 3</strong> Click Login
+            </p>
+
+            <div className={styles.pinRow}>
+              <input
+                type={showPin ? 'text' : 'password'}
+                className={styles.pinInput}
+                maxLength={4}
+                placeholder="PIN"
+                value={pin}
+                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              />
+              <button
+                className={styles.pinToggle}
+                onClick={() => setShowPin(s => !s)}
+                type="button"
+                aria-label="Toggle PIN visibility"
+              >
+                {showPin ? '🙈' : '👁'}
+              </button>
+            </div>
+
+            <button className={styles.loginBtn} onClick={handleLogin}>
+              Login →
+            </button>
+
+            {loginError && <div className={styles.error}>{loginError}</div>}
+
+            <p className={styles.hint}>
+              {departments.map((d, i) => (
+                <span key={d.id}>
+                  {d.name}:{d.pin}{i < departments.length - 1 ? ' · ' : ''}
+                </span>
+              ))}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
