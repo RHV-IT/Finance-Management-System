@@ -1097,20 +1097,6 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
 
                 {!multiTable && (
                     <>
-                        <Field label="Label">
-                            <input value={form.label} onChange={e=>setField('label',e.target.value)}
-                                placeholder="SIV Issues" style={iStyle} />
-                        </Field>
-                        
-                        <Field label="Module key">
-                            <ModulePicker
-                                page={form.feeds?.[0]?.page}
-                                value={form.module}
-                                onChange={v => setField('module', v)}
-                                error={errors.module}
-                            />
-                        </Field>
-
                         <Field label="Page this feeds" span>
                             <select value={form.feeds?.[0]?.page||''}
                                 onChange={e=>{
@@ -1125,6 +1111,20 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                                 <option value="">Select page…</option>
                                 {PAGES.map(p=><option key={p} value={p}>{p}</option>)}
                             </select>
+                        </Field>
+                        
+                        <Field label="Label">
+                            <input value={form.label} onChange={e=>setField('label',e.target.value)}
+                                placeholder="SIV Issues" style={iStyle} />
+                        </Field>
+
+                        <Field label="Module key">
+                            <ModulePicker
+                                page={form.feeds?.[0]?.page}
+                                value={form.module}
+                                onChange={v => setField('module', v)}
+                                error={errors.module}
+                            />
                         </Field>
 
                         <Field label="Section / tab within that page (optional label)" span>
