@@ -1,6 +1,6 @@
 'use client';
  
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import KPICard from '../../components/KPICard';
 import PageRenderer from '../../components/PageRenderer';
@@ -78,6 +78,19 @@ export default function HRPage() {
   const disciplineState= useSheetData(disciplineConn);
   const initState      = useSheetData(initConn);
   const blockersState  = useSheetData(blockersConn);
+
+  console.log('[HR debug]', {
+  configLoading,
+  configError,
+  connId: workforceConn?.id ?? null,
+  tabMode: workforceConn?.tabMode,
+  loading: workforceState.loading,
+  error: workforceState.error,
+  warnings: workforceState.warnings,
+  rowCount: workforceState.rows.length,
+  sample: workforceState.rows.slice(0, 3),
+  metrics: [...new Set(workforceState.rows.map(r => r.metric))],
+});
  
   if (configLoading) return <div><Loading message="Loading sheet configuration from Google Drive…" /></div>;
   if (configError) return (
@@ -131,11 +144,14 @@ export default function HRPage() {
               <KPICard label="New Hires" value={totalNewHires} delta="across all periods in sheet" deltaType="up" color="teal" />
               <KPICard label="Attrition Rate" value={`${attritionRate}%`} deltaType={+attritionRate>8?'down':'up'} color={+attritionRate>8?'red':'green'} />
               {ldCompletion !== null && <KPICard label="L&D Completion" value={`${ldCompletion}%`} delta="avg across pillars" deltaType="neutral" color="purple" />}
+              <PageRenderer page="hr" module="hr_workforce" only={['kpi']}/>
             </div>
  
             <div style={{ marginBottom: 14 }}>
               {/* Reads viz-hrhc-001 — trend mode by default (sum headcount per period) */}
-              <PageRenderer page="hr" module="hr_workforce"/>
+              <PageRenderer page="hr" module="hr_workforce" only={['bar','grouped_bar','line','grouped_line']} />
+              <PageRenderer page="hr" module="hr_workforce" only={['pie']}/>
+              <PageRenderer page="hr" module="hr_workforce" only={['table']}/>
             </div>
  
             {!initGuard && (

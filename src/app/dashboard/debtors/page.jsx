@@ -41,6 +41,8 @@ export default function DebtorsPage() {
  
   const debtorsConn = getByModule('debtors');
   const { rows, loading: rowsLoading, error: rowsError, refetch } = useSheetData(debtorsConn);
+  console.log('debtors conn:', debtorsConn?.id, debtorsConn?.sheetId, debtorsConn?.tabName);
+  console.log('first row:', rows?.[0]);
  
   // Revenue is only used for one optional cross-sheet KPI (the ratio) —
   // if it's missing or fails, we degrade that one KPI to "—" rather than
@@ -116,8 +118,9 @@ export default function DebtorsPage() {
       {/* ── KPIs — bespoke: needs a specific row (Largest) and a
           cross-connection number (Ratio) that no generic viz supports ──── */}
       <div className={styles.kpiGrid}>
-        <KPICard label="Total Outstanding" value={fmt(total)} delta="Target < ₦25M" deltaType={total < 25_000_000 ? 'up' : 'down'} badge={total < 25_000_000 ? '✓ OK' : '⚠ Action'} badgeType={total < 25_000_000 ? 'good' : 'bad'} color={total < 25_000_000 ? 'green' : 'red'} />
-        <KPICard
+        <PageRenderer page="debtors" module="debtors" only={['kpi']} />
+        {/*<KPICard label="Total Outstanding" value={fmt(total)} delta="Target < ₦25M" deltaType={total < 25_000_000 ? 'up' : 'down'} badge={total < 25_000_000 ? '✓ OK' : '⚠ Action'} badgeType={total < 25_000_000 ? 'good' : 'bad'} color={total < 25_000_000 ? 'green' : 'red'} />*/}
+        {/*<KPICard
           label="Debtor / Revenue Ratio"
           value={ratio !== null ? `${ratio.toFixed(1)}%` : '—'}
           delta={ratio !== null ? 'Target < 20%' : 'revenue_monthly not connected'}
@@ -125,9 +128,10 @@ export default function DebtorsPage() {
           badge={ratio !== null ? (ratio > 20 ? '⚠ Above Limit' : '✓ OK') : undefined}
           badgeType={ratio !== null ? (ratio > 20 ? 'bad' : 'good') : undefined}
           color={ratio !== null ? (ratio > 20 ? 'red' : 'green') : 'blue'}
-        />
-        <KPICard label="Debtor Categories" value={categoriesTracked} delta="Active accounts" deltaType="up" color="blue" />
-        <KPICard label="Largest Debtor" value={largest?.category || '—'} delta={largest ? fmt(n(largest.amount)) : ''} deltaType="down" color="red" />
+        />*/}
+        {/*<KPICard label="Debtor Categories" value={categoriesTracked} delta="Active accounts" deltaType="up" color="blue" />*/}
+        {/*<KPICard label="Largest Debtor" value={largest?.category || '—'} delta={largest ? fmt(n(largest.amount)) : ''} deltaType="down" color="red" />*/}
+        
       </div>
  
       {/* ── Chart — config-driven via PageRenderer (viz-debt-002). If your
@@ -136,7 +140,7 @@ export default function DebtorsPage() {
           selector — no extra config needed, that's DynamicViz's built-in
           time-series detection. ──── */}
       <div style={{ marginBottom: 14 }}>
-        <PageRenderer page="debtors" module="debtors" only={['bar']} />
+        <PageRenderer page="debtors" module="debtors" only={['bar', 'grouped_bar','line','grouped_line']} />
       </div>
       
       <PageRenderer page="debtors" module="debtors" only={['pie']} />

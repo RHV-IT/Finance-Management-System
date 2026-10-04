@@ -129,6 +129,7 @@ export default function ExpensesPage() {
           value={monthly.length > 0 ? fmt(tExp / monthly.length) : '—'}
           color="purple"
         />
+      <PageRenderer page="expenses" module="revenue_monthly" only={['kpi']} />
       </div>
  
       {/* ── Ratio trend — derived metric (expenses/revenue), stays bespoke ──── */}
@@ -141,6 +142,10 @@ export default function ExpensesPage() {
       </div>
  
       {/* ── Monthly detail — config-driven via PageRenderer (viz-rev-004) ──── */}
+      <PageRenderer page="expenses" module="revenue_monthly" only={['bar']} />
+      
+      <PageRenderer page="expenses" module="revenue_monthly" only={['pie']} />
+
       <PageRenderer page="expenses" module="revenue_monthly" only={['table']} />
     </div>
   );

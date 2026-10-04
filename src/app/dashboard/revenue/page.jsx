@@ -153,13 +153,14 @@ export default function RevenuePage() {
  
       {/* ── KPIs — bespoke, needs per-item grouping the config vizs don't do ──── */}
       <div className={styles.kpiGrid}>
-        <KPICard label="Total Revenue YTD" value={fmt(total)} color="green" badge="YTD" badgeType="good" />
+        {/*<KPICard label="Total Revenue YTD" value={fmt(total)} color="green" badge="YTD" badgeType="good" />*/}
         <KPICard label="Revenue Streams" value={streams.length} color="blue" />
         <KPICard label="Top Stream" value={topStream ? topStream.name : '—'} delta={topStream ? fmt(topStream.ytd) : ''} deltaType="up" color="purple" />
         <KPICard label={`${latestPeriod || 'Latest'} Revenue`} value={fmt(totalLatest)} color="amber" />
+        <PageRenderer page="revenue" module="revenue_ledger" only={['kpi']} />
       </div>
  
-      {/* ── Filter toolbar ───────────────────────────── */}
+      {/* ── Filter toolbar ───────────────────────────── 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>Sort:</span>
         {[['hi','Highest'], ['lo','Lowest'], ['az','A–Z']].map(([k, l]) => (
@@ -200,6 +201,7 @@ export default function RevenuePage() {
           }}
         />
       </div>
+      */}
  
       {/* ── Charts — config-driven via PageRenderer ──────────────────────── */}
       {/* Reads viz-revl-004 (Top Revenue Streams bar) + viz-revl-005 (Payment
@@ -211,7 +213,7 @@ export default function RevenuePage() {
         <PageRenderer page="revenue" module="revenue_ledger" only={['pie']} />
       </div>
  
-      {/* ── Table — bespoke per-stream detail (search/sort/%-toggle/MoM) ──── */}
+      {/* ── Table — bespoke per-stream detail (search/sort/%-toggle/MoM) ──── 
       <div className={tableStyles.tableBox}>
         <div className={tableStyles.tableTitle}>Revenue Streams Detail</div>
         <table className={tableStyles.table}>
@@ -268,7 +270,7 @@ export default function RevenuePage() {
             </tr>
           </tfoot>
         </table>
-      </div>
+      </div>*/}
       
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
         <PageRenderer page="revenue" module="revenue_ledger" only={['table']} />

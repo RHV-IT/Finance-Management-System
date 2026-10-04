@@ -101,9 +101,7 @@ const PAGE_MODULES = {
     ],
 
     expenses: [
-        { value: '', label: '' },
-        { value: '', label: '' },
-        { value: '', label: '' },
+        { value: 'revenue_monthly', label: 'Expenses' },
     ],
 
     grn: [
@@ -506,16 +504,50 @@ function ColumnMapBuilder({ pairs, onChange, sheetHeaders }) {
 // shape that lib/googleSheets.js + lib/scorecardParser.js expect — they never
 // see or touch that JSON directly.
 
+function colLettersToIndex(letter) {
+    let n = 0;
+    for (const c of String(letter).toUpperCase()) n = n * 26 + (c.charCodeAt(0) - 64);
+    return n - 1;
+}
+
+// Works the row numbers back out of a SAVED scorecard connection.
+function deriveRowConfig(form) {
+    const sc = form.scorecard;
+    const m = String(form.range || '').match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/i);
+    if (!sc?.colMap || !m) return null;
+    const header    = +m[1];
+    const last      = +m[2];
+    const dataStart = header + (sc.dataStartOffset ?? 2);
+    return {
+        headerRow:    header,
+        dataStartRow: dataStart,
+        approxRows:   Math.max(last - dataStart + 1, 1),
+    };
+}
+
+// Turns saved compositeOverrides back into the shape the form edits.
+function overridesFromSaved(list) {
+    return (list || []).map(o => ({
+        category:  o.when?.category || '',
+        kpiNo:     o.when?.kpiNo || '',
+        labels:    (o.labels || []).join(', '),
+        delimiter: o.delimiter || ':',
+    }));
+}
+
+
 function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
-    const [headerRow,    setHeaderRow]    = useState(6);
-    const [dataStartRow, setDataStartRow] = useState(8);
-    const [approxRows,   setApproxRows]   = useState(50);
-    const [columns,      setColumns]      = useState([]); // [{ letter, text1, text2, role, periodKey, periodLabel }]
+    const saved = deriveRowConfig(form);
+
+    const [headerRow,    setHeaderRow]    = useState(saved?.headerRow    ?? 6);
+    const [dataStartRow, setDataStartRow] = useState(saved?.dataStartRow ?? 8);
+    const [approxRows,   setApproxRows]   = useState(saved?.approxRows   ?? 50);
+    const [columns,      setColumns]      = useState([]);
     const [detecting,    setDetecting]    = useState(false);
     const [detectError,  setDetectError]  = useState(null);
 
-    const [overrides, setOverrides] = useState([]); // [{ category, kpiNo, labels, delimiter }]
-    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [overrides, setOverrides] = useState(() => overridesFromSaved(form.scorecard?.compositeOverrides));
+    const [showAdvanced, setShowAdvanced] = useState(() => (form.scorecard?.compositeOverrides || []).length > 0);
 
     async function detectHeaders() {
         const id = extractSheetId(sheetId) || sheetId.trim();
@@ -536,23 +568,35 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
             const row2 = data.values?.[1] || [];
             const lastIdx = Math.max(row1.length, row2.length) - 1;
 
-            // Trim trailing columns that are empty in BOTH rows — no point showing 28 blank columns.
             let lastUsed = -1;
             for (let i = 0; i <= lastIdx; i++) {
                 if (String(row1[i] ?? '').trim() || String(row2[i] ?? '').trim()) lastUsed = i;
             }
 
+            // Saved settings win; the header-text guess only fills unconfigured columns.
+            const savedCfg = form.scorecard || {};
+            const roleByLetter = {};
+            Object.entries(savedCfg.colMap || {}).forEach(([role, letter]) => { roleByLetter[letter] = role; });
+            const periodByLetter = savedCfg.periodCols || {};
+
+            // Keep saved columns visible even if their header cells are blank.
+            const savedLetters = [...Object.values(savedCfg.colMap || {}), ...Object.keys(periodByLetter)];
+            const savedMaxIdx = savedLetters.reduce((mx, l) => Math.max(mx, colLettersToIndex(l)), -1);
+            lastUsed = Math.max(lastUsed, savedMaxIdx);
+
             const detected = [];
             for (let i = 0; i <= lastUsed; i++) {
                 const text1 = String(row1[i] ?? '').trim();
                 const text2 = String(row2[i] ?? '').trim();
+                const letter = colIndexToLetter(i);
+                const savedPeriod = periodByLetter[letter];
                 const guessedKey = parsePeriodFromString(text2 || text1);
+
                 detected.push({
-                    letter: colIndexToLetter(i),
-                    text1, text2,
-                    role: '',
-                    periodKey: guessedKey || '',
-                    periodLabel: text2 || text1,
+                    letter, text1, text2,
+                    role:        savedPeriod ? 'period' : (roleByLetter[letter] || ''),
+                    periodKey:   savedPeriod?.key   || guessedKey || '',
+                    periodLabel: savedPeriod?.label || text2 || text1,
                 });
             }
             setColumns(detected);
@@ -562,22 +606,25 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
         setDetecting(false);
     }
 
-    function updateColumn(letter, patch) {
-        setColumns(cols => cols.map(c => c.letter === letter ? { ...c, ...patch } : c));
-    }
+    // Auto-load the grid when editing an existing scorecard connection.
+    useEffect(() => {
+        if (form.scorecard?.colMap && form.tabName && sheetId) detectHeaders();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    function addOverride() {
-        setOverrides(o => [...o, { category: '', kpiNo: '', labels: '', delimiter: ':' }]);
-    }
-    function updateOverride(i, patch) {
-        setOverrides(o => o.map((row, idx) => idx === i ? { ...row, ...patch } : row));
-    }
-    function removeOverride(i) {
-        setOverrides(o => o.filter((_, idx) => idx !== i));
-    }
-
-    // Push the assembled config up into the parent form any time something changes.
     function commitConfig(nextColumns = columns, nextOverrides = overrides, nextHeaderRow = headerRow, nextDataStartRow = dataStartRow, nextApproxRows = approxRows) {
+        const lastDataRow = nextDataStartRow + Math.max(nextApproxRows, 1) - 1;
+
+        // Columns not loaded yet: keep the saved colMap/periodCols/overrides,
+        // only update the row numbers (instead of wiping everything to {}).
+        if (!nextColumns.length) {
+            const prev = form.scorecard || {};
+            const m = String(form.range || '').match(/^([A-Z]+)\d+:([A-Z]+)\d+$/i);
+            setField('range', `${m?.[1] || 'A'}${nextHeaderRow}:${m?.[2] || 'Z'}${lastDataRow}`);
+            setField('scorecard', { ...prev, dataStartOffset: nextDataStartRow - nextHeaderRow });
+            return;
+        }
+
         const colMap = {};
         const periodCols = {};
         nextColumns.forEach(c => {
@@ -598,7 +645,6 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
 
         const firstLetter = nextColumns[0]?.letter || 'A';
         const lastLetter  = nextColumns[nextColumns.length - 1]?.letter || 'Z';
-        const lastDataRow = nextDataStartRow + Math.max(nextApproxRows, 1) - 1;
 
         setField('range', `${firstLetter}${nextHeaderRow}:${lastLetter}${lastDataRow}`);
         setField('scorecard', {
@@ -646,7 +692,6 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
                 KPI will just sit under one group instead of several.
             </div>
 
-            {/* ── Tab picker ── */}
             <Field label="Tab Name (exact)">
                 <input value={form.tabName} onChange={e=>setField('tabName', e.target.value)}
                     list="sheet-tabs-scorecard"
@@ -657,7 +702,6 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
                 </datalist>
             </Field>
 
-            {/* ── Row locations ── */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, margin:'14px 0' }}>
                 <Field label="Which row has the category/measure labels?">
                     <input type="number" value={headerRow}
@@ -683,7 +727,6 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
             </button>
             {detectError && <div style={{ fontSize:11, color:'var(--red)', marginBottom:10 }}>{detectError}</div>}
 
-            {/* ── Detected columns grid ── */}
             {columns.length > 0 && (
                 <div style={{ marginTop:16 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:'var(--navy)', marginBottom:4 }}>
@@ -738,7 +781,6 @@ function ScorecardSetup({ form, setField, sheetTabs, sheetId, errors }) {
                 </div>
             )}
 
-            {/* ── Advanced: composite cells ── */}
             {columns.length > 0 && (
                 <div style={{ marginTop:20 }}>
                     <button onClick={()=>setShowAdvanced(s=>!s)} style={{
@@ -883,6 +925,7 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
         tabMode:        initial?.tabMode        || 'single',
         tabName:        initial?.tabName        || '',
         tabs:           initial?.tabs           || [],
+        scorecard:      initial?.scorecard,          // <-- ADD THIS
         visualizations: initial?.visualizations || [],
         feeds:          initial?.feeds          || [{ page:'', section:'', requiredFields:[] }],
     });
@@ -948,31 +991,32 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
         setAllowedPages(getAllowedPages());
     }, []);
 
+    const [isAdmin, setIsAdmin] = useState(false);
+
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
         const role = sessionStorage.getItem('rhv_role');
-
         let allowed = [];
-
         try {
-            allowed = JSON.parse(
-            sessionStorage.getItem('rhv_allowed_pages') || '[]'
-            );
-        } catch {
-            allowed = [];
-        }
+            allowed = JSON.parse(sessionStorage.getItem('rhv_allowed_pages') || '[]');
+        } catch {}
 
-        const dept = DEPARTMENTS.find(d => d.id === role);
+        const admin =
+            allowed.includes('*') ||
+            sessionStorage.getItem('rhv_can_manage_permissions') === '1';
+        const dept = DEPARTMENTS.find(d => d.id === role) || null;
 
-        setUserDepartment(dept || null);
+        setIsAdmin(admin);
+        setUserDepartment(dept);
+        setAllowedPages(allowed.includes('*') ? PAGES : PAGES.filter(p => allowed.includes(p)));
 
-        setAllowedPages(
-            allowed.includes('*')
-            ? PAGES
-            : PAGES.filter(page => allowed.includes(page))
+        setForm(f =>
+            admin
+            ? (f.dept ? f : { ...f, dept: dept?.name || '' })   // admins: only default it if empty
+            : { ...f, dept: dept?.name || f.dept }              // everyone else: locked to their own
         );
-    }, []);
+    }, [initial?.id]);
 
     useEffect(() => {
         if (userDepartment) {
@@ -1186,18 +1230,14 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                 <Field label="Department">
                     <select
                         value={form.dept || ''}
-                        disabled
+                        disabled={!isAdmin}
+                        onChange={e => setField('dept', e.target.value)}
                         style={iStyle}
                     >
-                        <option value="">
-                        Select department…
-                        </option>
-
-                        {userDepartment && (
-                        <option value={userDepartment.name}>
-                            {userDepartment.name}
-                        </option>
-                        )}
+                        <option value="">Select department…</option>
+                        {(isAdmin ? DEPARTMENTS : userDepartment ? [userDepartment] : []).map(d => (
+                        <option key={d.id} value={d.name}>{d.name}</option>
+                        ))}
                     </select>
                 </Field>
 
@@ -1488,6 +1528,7 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                             </div>
                         )}
                         <ScorecardSetup
+                            key={initial?.id || 'new'}
                             form={form} setField={setField}
                             sheetTabs={sheetTabs}
                             sheetId={form.sheetId}

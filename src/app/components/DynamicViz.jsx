@@ -4,48 +4,38 @@
  * components/DynamicViz.jsx
  *
  * Renders visualizations from the Drive JSON config.
- * Automatically detects if data spans multiple time periods
- * and switches between time-series and flat rendering.
  *
- * USAGE:
- *   <DynamicVizList connection={conn} rows={rows} />
- *   <DynamicVizList connection={conn} rows={rows} only={['kpi']} />
- *   <DynamicViz viz={viz} rows={rows} />
+ * viz.filters — row-level filtering applied before ANYTHING else touches
+ * the rows, for EVERY viz type, on EVERY connection type (not just
+ * scorecards). Shape:
+ *   viz.filters = [{ field: 'name', values: ['Bed fee (Admission)'] }]
+ * A row must match every filter entry (AND across entries) and match at
+ * least one value within each entry (OR within an entry). This is what
+ * lets a KPI card (or any chart) be scoped to one particular row/line-item
+ * on a normal table, not just to a whole-sheet aggregate.
  *
- * viz.filters — row-level filtering applied before any aggregation.
- * Mainly for scorecard connections, where one connection's rows hold every
- * KPI mixed together (category/metric/value/_period) — without this, a
- * chart has no way to say "just this one metric" and would otherwise sum
- * unrelated KPIs (percentages, headcounts, currency) into one meaningless
- * number. Shape:
- *   viz.filters = [
- *     { field: 'category', values: ['Clinical Supervision and Leadership'] },
- *     { field: 'metric',   values: ['Prescriptions Dispensed'] },
- *   ]
- * A row must match every filter entry (AND across filters) and match at
- * least one value within each entry (OR within a filter). An entry with
- * an empty values[] is ignored (no constraint). Works for any connection
- * type, not just scorecards — e.g. `{ field: 'dept', values: ['Kitchen'] }`
- * on a normal connection.
+ * A filter entry can also carry `exclude: true`, which inverts it: rows
+ * whose value IS in values[] are dropped and everything else is kept
+ * (e.g. a pie of the whole sheet minus a few line items). Entries without
+ * the flag behave exactly as before.
  *
- * NEW — grouped series can now be scoped with matchField/matchValue:
- * ─────────────────────────────────────────────────────────────────
- * viz.yFields entries used to mean "sum this different FIELD as its own
- * series" (e.g. compare a `receipts` column against an `issues` column).
- * That falls apart for scorecard data, where several things you want to
- * compare (Pharmacist / Pharm. Tech. / Porter / Admin) all live in the
- * SAME field (`value`), distinguished only by another column (`subLabel`).
+ * viz.acrossColumns + viz.columnSeries — for Bar/Line charts on a PLAIN
+ * table connection where the months (or any other series) are separate
+ * COLUMNS rather than separate ROWS (the shape Scorecard mode expects).
+ * Melts those named columns into X-axis points on the fly, at render
+ * time, using whatever rows survived viz.filters above:
+ *   - No row filter applied  → each column gets SUMMED across every row
+ *     (reconstructs a "total per month" trend live from the real data).
+ *   - Filtered to one row    → each column is just read off that one row
+ *     (a single line item's month-by-month trend, off a plain table).
+ * Both cases are the exact same code path — summing a single row is the
+ * same as reading it, so there's no separate "row" vs "sum" mode to
+ * configure; it falls out naturally from whether a filter narrowed things
+ * down first.
  *
- * So a yField entry can now optionally carry:
- *   { field: 'value', matchField: 'subLabel', matchValue: 'Pharmacist', label: 'Pharmacist' }
- * meaning: "before summing this series, only include rows where
- * row[matchField] === matchValue". A yField with no matchField behaves
- * exactly as before (no extra filtering) — fully backward compatible with
- * every existing grouped_line viz.
- *
- * See rowMatchesSeries() and buildGroupedSeriesData() below for the
- * mechanics, and VizGroupedBar (new) / VizGroupedLine (updated) for how
- * they're used.
+ * KPI cards render through <KPICard /> and support optional viz.delta
+ * (none | static | vs_previous | vs_target) and viz.badge
+ * (none | static | rules) configs — see resolveDelta() / resolveBadge().
  */
 
 import { useState } from 'react';
@@ -56,6 +46,7 @@ import {
 } from 'recharts';
 import { fmt, COLORS } from '../dashboard/lib/data';
 import tableStyles from '../styles/Table.module.css';
+import KPICard from './KPICard';
 
 const tip = { background: '#fff', border: '1px solid #E0E4EA', borderRadius: 8, fontSize: 11 };
 const n   = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
@@ -68,22 +59,16 @@ export function applyVizFilters(rows, viz) {
 
     return rows.filter(row =>
         filters.every(f => {
-            if (!f?.field || !f.values || !f.values.length) return true; // no constraint
-            return f.values.includes(String(row[f.field] ?? ''));
+            if (!f?.field || !f.values || !f.values.length) return true;
+            const hit = f.values.includes(String(row[f.field] ?? ''));
+            // f.exclude flips the meaning: drop the matching rows, keep the rest.
+            return f.exclude ? !hit : hit;
         })
     );
 }
 
 // ─── Time-series detection ────────────────────────────────────
 
-/**
- * Detects whether rows span multiple time periods.
- * Returns { isTimeSeries, periods, groupedByPeriod }
- *
- * A dataset is considered time-series when:
- *  - rows have a _period field AND
- *  - there are 2+ distinct periods
- */
 export function detectTimeSeries(rows) {
     if (!rows?.length) return { isTimeSeries: false, periods: [], groupedByPeriod: {} };
 
@@ -93,7 +78,6 @@ export function detectTimeSeries(rows) {
         return { isTimeSeries: false, periods, groupedByPeriod: {} };
     }
 
-    // Group rows by period
     const groupedByPeriod = {};
     periods.forEach(p => {
         groupedByPeriod[p] = rows.filter(r => r._period === p);
@@ -102,10 +86,6 @@ export function detectTimeSeries(rows) {
     return { isTimeSeries: true, periods, groupedByPeriod };
 }
 
-/**
- * Aggregate rows by period for a trend chart.
- * groupByField: optional field to group within each period (e.g. 'dept')
- */
 export function buildTrendData(rows, fields = ['total', 'qty']) {
     const grouped = {};
 
@@ -121,13 +101,6 @@ export function buildTrendData(rows, fields = ['total', 'qty']) {
     return Object.values(grouped).sort((a, b) => a.month.localeCompare(b.month));
 }
 
-/**
- * Groups rows by a category field, summing a value field for each group.
- * This is what makes "one bar per vendor / department / item" work correctly
- * when the underlying data has many rows per category (a ledger, not a
- * one-row-per-entity register). Order of first appearance is preserved
- * before any sort is applied by the caller.
- */
 function groupAndSum(rows, catField, valField) {
     const order = [];
     const totals = {};
@@ -141,46 +114,16 @@ function groupAndSum(rows, catField, valField) {
 
 // ─── Grouped-series helpers (bar + line share these) ───────────
 
-/**
- * Does this row belong in this particular series?
- *
- * If the series has no matchField, it's an "old-style" series — every row
- * counts, exactly like before this feature existed.
- *
- * If it DOES have a matchField (e.g. 'subLabel'), the row only counts when
- * that column's value equals matchValue (e.g. 'Porter'). This is what lets
- * four series all read the same `value` field but each only "see" the rows
- * belonging to one role/category/whatever the sheet split things by.
- */
 function rowMatchesSeries(row, f) {
     if (!f.matchField) return true;
     return String(row[f.matchField] ?? '').trim() === String(f.matchValue ?? '').trim();
 }
 
-/**
- * Turns viz.yFields + rows into chart-ready data for BOTH grouped_bar and
- * grouped_line (they need the exact same shape — only how it's drawn differs).
- *
- * Why not just key each series by its `field` name (the way the OLD code did)?
- * Because two series can now legitimately share the same field — e.g. all four
- * "role" series above read `value`. If we used `field` as the object key, the
- * second series to run would silently overwrite the first one's numbers in the
- * same slot. So instead every series gets its own throwaway key based on its
- * POSITION in the yFields array — 's0' for the first entry, 's1' for the
- * second, and so on — guaranteed unique regardless of what `field` they share.
- *
- * Returns both the chart data AND those generated keys, because the renderer
- * needs to know which key in the data belongs to which <Bar>/<Line> — see
- * VizGroupedBar / VizGroupedLine below, which zip yFields[i] together with
- * seriesKeys[i] to get the right label/color on the right line of data.
- */
 function buildGroupedSeriesData(rows, viz, isTimeSeries, period) {
     const yFields    = viz.yFields || [];
     const seriesKeys = yFields.map((_, i) => `s${i}`);
 
     if (isTimeSeries && period === 'all') {
-        // Trend mode: one data point per PERIOD (month), each holding every
-        // series' total for that month — e.g. { x: '2026-01', s0: 4, s1: 4, s2: 1, s3: 1 }
         const byPeriod = {};
         rows.forEach(r => {
             const p = r._period || 'unknown';
@@ -195,9 +138,6 @@ function buildGroupedSeriesData(rows, viz, isTimeSeries, period) {
         return { chartData: Object.values(byPeriod).sort((a, b) => a.x.localeCompare(b.x)), seriesKeys };
     }
 
-    // Snapshot mode: one data point per whatever viz.xField is (e.g. 'category'
-    // or 'metric') instead of per month — used when a specific period is
-    // selected, or the data isn't a time series at all.
     const filteredRows = isTimeSeries ? rows.filter(r => r._period === period) : rows;
     const byX = {};
     filteredRows.forEach(r => {
@@ -213,6 +153,22 @@ function buildGroupedSeriesData(rows, viz, isTimeSeries, period) {
     return { chartData: Object.values(byX), seriesKeys };
 }
 
+// ─── Column-series melting (plain-table "plot across columns") ──
+
+function buildColumnSeriesData(rows, columnSeries) {
+    const fields = columnSeries?.fields || [];
+    if (!fields.length || !rows?.length) return [];
+    // Deliberately just ONE code path: sum each named column across
+    // whatever rows are here. If viz.filters already narrowed things down
+    // to a single row, "summing" it is identical to just reading it — so
+    // there's no separate "one row" vs "every row" mode to configure here;
+    // it falls straight out of whether a filter was applied upstream.
+    return fields.map(f => ({
+        x: f.label || f.field,
+        y: rows.reduce((s, r) => s + n(r[f.field]), 0),
+    }));
+}
+
 // ─── Aggregation ──────────────────────────────────────────────
 
 function aggregate(rows, field, agg) {
@@ -223,14 +179,6 @@ function aggregate(rows, field, agg) {
             return set.size;
         }
         case 'count': return rows.length;
-        // 'latest' just needs the last row's ACTUAL value — no summing happens,
-        // so there's no reason to force it through n() first. This is what makes
-        // text-valued KPIs (e.g. a scorecard row like "Most prescribed drug" —
-        // "Ivf Pcm", "Cutenox"...) work: previously n("Ivf Pcm") silently became
-        // 0 before this switch ever saw it, so a text KPI's card always showed
-        // "0" no matter what. Reading the raw field straight off the last row
-        // sidesteps that entirely — numeric fields still work exactly as before,
-        // since a number is still just returned as itself here.
         case 'latest': {
             const raw = rows[rows.length - 1]?.[field];
             return raw === undefined || raw === null || raw === '' ? 0 : raw;
@@ -248,13 +196,6 @@ function aggregate(rows, field, agg) {
 }
 
 function formatValue(value, format) {
-    // A KPI's field might legitimately hold text — a scorecard row like "Most
-    // prescribed drug" whose value is "Ivf Pcm", not a number. If the format
-    // dropdown was still left on Currency/Number/Percent (easy to forget to
-    // change for a KPI you don't think of as "text"), those branches would
-    // otherwise silently produce "₦NaN" or "NaN%". So: if this value isn't
-    // actually a number, show it plainly no matter what format was picked —
-    // only numeric values go through the currency/percent/number formatting.
     const isNumeric = value !== '' && value !== null && !isNaN(Number(value));
     if (!isNumeric && format !== 'text') return String(value);
 
@@ -267,7 +208,6 @@ function formatValue(value, format) {
     }
 }
 
-// Returns a tooltip formatter based on viz.format
 function makeFormatter(format) {
     switch (format) {
         case 'currency': return v => fmt(v);
@@ -278,7 +218,6 @@ function makeFormatter(format) {
     }
 }
 
-// Returns a compact axis tick formatter
 function makeTickFormatter(format) {
     switch (format) {
         case 'currency':
@@ -324,64 +263,125 @@ function PeriodFilter({ periods, selected, onChange }) {
     );
 }
 
-// ─── COLOR MAP for KPIs ───────────────────────────────────────
+// ─── KPI HELPERS ──────────────────────────────────────────────
 
-const COLOR_MAP = {
-    blue:   { bg: '#EBF5FB', border: '#AED6F1', text: '#1B4F72' },
-    green:  { bg: '#E8F8F5', border: '#A9DFBF', text: '#117A65' },
-    red:    { bg: '#FEECEC', border: '#F1948A', text: '#C0392B' },
-    amber:  { bg: '#FEF9E7', border: '#F9E79F', text: '#9A7D0A' },
-    purple: { bg: '#F5EEF8', border: '#D2B4DE', text: '#6C3483' },
-    navy:   { bg: '#EAF0F6', border: '#AEB6BF', text: '#1B2631' },
+const fmtNum = n => Number.isFinite(n)
+    ? n.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—';
+
+const OPS = {
+    '>=': (a, b) => a >= b, '>': (a, b) => a > b,
+    '<=': (a, b) => a <= b, '<': (a, b) => a < b,
+    '==': (a, b) => a === b,
 };
+
+function resolveDelta(cfg, { viz, rows, period, periods, value }) {
+    if (!cfg || !cfg.mode || cfg.mode === 'none') return null;
+    const higherIsBetter = cfg.higherIsBetter !== false;
+    const manual = cfg.type && cfg.type !== 'auto';
+
+    // Arrow follows the direction of change; colour follows good/bad.
+    const style = (change) => {
+        if (manual) return { type: cfg.type };
+        if (!change) return { type: 'warn' };
+        const good = higherIsBetter ? change > 0 : change < 0;
+        return { type: good ? 'up' : 'down', icon: change > 0 ? '↑' : '↓' };
+    };
+
+    if (cfg.mode === 'static') {
+        return cfg.text ? { text: cfg.text, type: manual ? cfg.type : 'up' } : null;
+    }
+
+    if (cfg.mode === 'vs_previous') {
+        const ordered = [...(periods || [])].sort();
+        const current = period === 'all' ? ordered[ordered.length - 1] : period;
+        const i = ordered.indexOf(current);
+        if (i < 1) return null; // no earlier period to compare against
+        const agg = viz.agg || 'sum';
+        const curr = Number(aggregate(rows.filter(r => r._period === current), viz.field, agg));
+        const prev = Number(aggregate(rows.filter(r => r._period === ordered[i - 1]), viz.field, agg));
+        if (!Number.isFinite(curr) || !Number.isFinite(prev) || prev === 0) return null;
+        const change = curr - prev;
+        const amount = cfg.display === 'absolute'
+            ? fmtNum(Math.abs(change))
+            : `${fmtNum(Math.abs(change / prev) * 100)}%`;
+        return { text: `${amount} ${cfg.suffix || 'vs previous period'}`.trim(), ...style(change) };
+    }
+
+    if (cfg.mode === 'vs_target') {
+        const target = Number(cfg.target), v = Number(value);
+        if (!Number.isFinite(target) || target === 0 || !Number.isFinite(v)) return null;
+        const diff = v - target;
+        const text = cfg.display === 'difference'
+            ? `${fmtNum(Math.abs(diff))} ${diff >= 0 ? 'above' : 'below'} target`
+            : `${fmtNum((v / target) * 100)}% of target`;
+        return { text, ...style(diff) };
+    }
+    return null;
+}
+
+function resolveBadge(cfg, value) {
+    if (!cfg || !cfg.mode || cfg.mode === 'none') return null;
+    if (cfg.mode === 'static') return cfg.text ? { text: cfg.text, type: cfg.type || 'good' } : null;
+    if (cfg.mode === 'rules') {
+        const v = Number(value);
+        const hit = (cfg.rules || []).find(r =>
+            OPS[r.op] && r.value !== '' && Number.isFinite(+r.value) && OPS[r.op](v, +r.value));
+        if (hit) return { text: hit.text, type: hit.type || 'good' };
+        return cfg.fallback?.text ? { text: cfg.fallback.text, type: cfg.fallback.type || 'warn' } : null;
+    }
+    return null;
+}
 
 // ─── VIZ RENDERERS ───────────────────────────────────────────
 
 function VizKPI({ viz, rows, isTimeSeries, periods }) {
     const [period, setPeriod] = useState('all');
     const filteredRows = isTimeSeries && period !== 'all'
-        ? rows.filter(r => r._period === period)
-        : rows;
+        ? rows.filter(r => r._period === period) : rows;
 
-    const value  = aggregate(filteredRows, viz.field, viz.agg || 'sum');
-    const colors = COLOR_MAP[viz.color] || COLOR_MAP.blue;
+    const value = aggregate(filteredRows, viz.field, viz.agg || 'sum');
+
+    const delta = resolveDelta(viz.delta, { viz, rows, period, periods, value });
+    let badge = resolveBadge(viz.badge, value);
+    // Only show the "Across N periods" note if no badge is configured
+    if (!badge && isTimeSeries && period === 'all') {
+        badge = { text: `Across ${periods.length} periods`, type: 'good' };
+    }
+
+    const periodPill = isTimeSeries && (
+        <select value={period} onChange={e => setPeriod(e.target.value)} style={{
+            fontSize: 10, fontWeight: 700, color: 'inherit',
+            background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(0,0,0,0.12)',
+            borderRadius: 99, padding: '2px 8px', cursor: 'pointer', outline: 'none', maxWidth: 110,
+        }}>
+            <option value="all">All periods</option>
+            {periods.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+    );
 
     return (
-        <div style={{ background: colors.bg, border: `1.5px solid ${colors.border}`, borderRadius: 10, padding: '16px 20px' }}>
-            {isTimeSeries && (
-                <select value={period} onChange={e => setPeriod(e.target.value)}
-                    style={{ fontSize: 9, border: 'none', background: 'transparent', color: colors.text, marginBottom: 6, cursor: 'pointer', fontWeight: 700 }}>
-                    <option value="all">All periods</option>
-                    {periods.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-            )}
-            <div style={{ fontSize: 10, fontWeight: 700, color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                {viz.label}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: colors.text }}>
-                {formatValue(value, viz.format || 'currency')}
-            </div>
-            {isTimeSeries && period === 'all' && (
-                <div style={{ fontSize: 9, color: colors.text, opacity: 0.6, marginTop: 4 }}>Across {periods.length} periods</div>
-            )}
-        </div>
+        <KPICard
+            label={viz.label}
+            value={formatValue(value, viz.format || 'currency')}
+            color={viz.color || 'blue'}
+            delta={delta?.text}
+            deltaType={delta?.type}
+            deltaIcon={delta?.icon}
+            badge={badge?.text}
+            badgeType={badge?.type}
+            corner={periodPill}
+        />
     );
 }
 
 function VizBar({ viz, rows, isTimeSeries, periods }) {
     const [period, setPeriod] = useState('all');
+    const usesColumnSeries = viz.acrossColumns && viz.columnSeries?.fields?.length;
 
-    // If time-series and "all" selected → show trend (one bar per period)
-    // If time-series and specific period → show flat data for that period, grouped by category
-    // If not time-series → show flat data, grouped by category
-    //
-    // "Grouped by category" matters whenever xField can repeat across rows
-    // (multiple transactions for the same vendor/department/item) — each
-    // category becomes exactly one bar, summed, instead of one bar per row.
     let chartData;
-
-    if (isTimeSeries && period === 'all') {
-        // Trend mode — aggregate by period
+    if (usesColumnSeries) {
+        chartData = buildColumnSeriesData(rows, viz.columnSeries);
+    } else if (isTimeSeries && period === 'all') {
         const trendFields = [viz.yField].filter(Boolean);
         const trend       = buildTrendData(rows, trendFields);
         chartData = trend.map(t => ({ x: t.month, y: n(t[viz.yField]) }));
@@ -394,8 +394,9 @@ function VizBar({ viz, rows, isTimeSeries, periods }) {
         chartData = data;
     }
 
+    const showPeriodPicker = isTimeSeries && !usesColumnSeries;
     const fixedTarget  = viz.targetLine?.value;
-    const isHorizontal = viz.orientation === 'horizontal' && !(isTimeSeries && period === 'all');
+    const isHorizontal = viz.orientation === 'horizontal' && !(isTimeSeries && period === 'all') && !usesColumnSeries;
     const height       = isHorizontal ? Math.max(200, chartData.length * 28) : 220;
 
     return (
@@ -403,9 +404,9 @@ function VizBar({ viz, rows, isTimeSeries, periods }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--navy)' }}>
                     {viz.title}
-                    {isTimeSeries && period === 'all' && <span style={{ fontSize: 9, color: 'var(--muted)', marginLeft: 6 }}>trend across all periods</span>}
+                    {isTimeSeries && period === 'all' && !usesColumnSeries && <span style={{ fontSize: 9, color: 'var(--muted)', marginLeft: 6 }}>trend across all periods</span>}
                 </div>
-                {isTimeSeries && (
+                {showPeriodPicker && (
                     <select value={period} onChange={e => setPeriod(e.target.value)}
                         style={{ fontSize: 10, border: '1px solid var(--border)', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>
                         <option value="all">All (trend)</option>
@@ -444,27 +445,28 @@ function VizBar({ viz, rows, isTimeSeries, periods }) {
 
 function VizLine({ viz, rows, isTimeSeries, periods }) {
     const [period, setPeriod] = useState('all');
+    const usesColumnSeries = viz.acrossColumns && viz.columnSeries?.fields?.length;
 
     let chartData;
-    if (isTimeSeries && period === 'all') {
+    if (usesColumnSeries) {
+        chartData = buildColumnSeriesData(rows, viz.columnSeries);
+    } else if (isTimeSeries && period === 'all') {
         const trend = buildTrendData(rows, [viz.yField].filter(Boolean));
         chartData   = trend.map(t => ({ x: t.month, y: n(t[viz.yField]) }));
     } else {
-        // Grouped by category for the same reason as VizBar — a category
-        // (e.g. a date without full time-series granularity, or any
-        // repeating label) can span multiple rows.
         const filteredRows = isTimeSeries ? rows.filter(r => r._period === period) : rows;
         chartData = groupAndSum(filteredRows, viz.xField, viz.yField)
             .map(d => ({ ...d, x: d.x.slice(0, 10) }));
     }
 
+    const showPeriodPicker = isTimeSeries && !usesColumnSeries;
     const fixedTarget = viz.targetLine?.value;
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--navy)' }}>{viz.title}</div>
-                {isTimeSeries && (
+                {showPeriodPicker && (
                     <select value={period} onChange={e => setPeriod(e.target.value)}
                         style={{ fontSize: 10, border: '1px solid var(--border)', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>
                         <option value="all">All (trend)</option>
@@ -492,7 +494,6 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
         ? rows.filter(r => r._period === period)
         : rows;
 
-    // Group by catField, summing valField
     const grouped = {};
     filteredRows.forEach(r => {
         const cat = (r[viz.catField] || '').trim() || 'Other';
@@ -500,22 +501,20 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
     });
 
     const rawEntries = Object.entries(grouped)
-        .filter(([, v]) => v > 0)          // drop zero-value categories
+        .filter(([, v]) => v > 0)
         .sort((a, b) => b[1] - a[1]);
 
     const total = rawEntries.reduce((s, [, v]) => s + v, 0);
 
-    // Smart formatting — avoid dividing small quantities by 1e6
-    // If the max value is < 1,000 treat as plain numbers; otherwise use ₦M
     const data = rawEntries.map(([name, value]) => ({
         name,
         rawValue: value,
-        value: value, // raw value used for proportional sizing — display uses formatValue()
+        value: value,
     }));
 
     const RADIAN      = Math.PI / 180;
     const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-        if (percent < 0.04) return null; // hide label on very small slices
+        if (percent < 0.04) return null;
         const r = innerRadius + (outerRadius - innerRadius) * 0.5;
         const x = cx + r * Math.cos(-midAngle * RADIAN);
         const y = cy + r * Math.sin(-midAngle * RADIAN);
@@ -527,7 +526,6 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
         );
     };
 
-    // Custom tooltip — shows name, value, and % share
     const CustomTooltip = ({ active, payload }) => {
         if (!active || !payload?.length) return null;
         const entry = payload[0];
@@ -545,7 +543,6 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
 
     return (
         <div>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--navy)' }}>{viz.title}</div>
                 {isTimeSeries && (
@@ -563,7 +560,6 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center' }}>
-                    {/* Pie */}
                     <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                             <Pie
@@ -581,7 +577,6 @@ function VizPie({ viz, rows, isTimeSeries, periods }) {
                         </PieChart>
                     </ResponsiveContainer>
 
-                    {/* Inline legend — replaces the default Legend component */}
                     <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                         {data.map((entry, i) => {
                             const pct = total > 0 ? (entry.rawValue / total * 100).toFixed(1) : 0;
@@ -627,7 +622,6 @@ function VizTable({ viz, rows, isTimeSeries, periods }) {
 
     return (
         <div>
-            {/* Header row with controls */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexWrap:'wrap', gap:8 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--navy)' }}>
                     {viz.title}
@@ -639,12 +633,10 @@ function VizTable({ viz, rows, isTimeSeries, periods }) {
                 </div>
 
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {/* Period filter */}
                     {isTimeSeries && (
                         <PeriodFilter periods={periods} selected={period} onChange={setPeriod} />
                     )}
 
-                    {/* Row limit */}
                     <div style={{ display:'flex', alignItems:'center', gap:5 }}>
                         <span style={{ fontSize:10, color:'var(--muted)', whiteSpace:'nowrap' }}>Show:</span>
                         <select
@@ -690,7 +682,6 @@ function VizTable({ viz, rows, isTimeSeries, periods }) {
                 </table>
             </div>
 
-            {/* Load more */}
             {rowLimit !== 'all' && periodFiltered.length > rowLimit && (
                 <div style={{ textAlign:'center', marginTop:10 }}>
                     <button
@@ -713,16 +704,6 @@ function VizTable({ viz, rows, isTimeSeries, periods }) {
     );
 }
 
-// ─── Grouped Line Chart ───────────────────────────────────────
-/**
- * Multiple lines on one chart for comparison over time.
- * Config:
- *   viz.xField   — X axis (e.g. "month", "date") — used only in snapshot mode
- *   viz.yFields  — array of { field, label, color, matchField?, matchValue? }
- *   viz.format   — 'currency' | 'number' | 'percent'
- *
- * See buildGroupedSeriesData() above for how yFields → chart data.
- */
 function VizGroupedLine({ viz, rows, isTimeSeries, periods }) {
     const [period, setPeriod] = useState('all');
 
@@ -773,18 +754,6 @@ function VizGroupedLine({ viz, rows, isTimeSeries, periods }) {
     );
 }
 
-// ─── Grouped Bar Chart (NEW — was previously selectable in VizForm but had
-//      no renderer at all, so saving one just made it silently disappear) ──
-/**
- * Side-by-side bars for comparison — the bar-chart equivalent of
- * VizGroupedLine above, built on the exact same buildGroupedSeriesData()
- * helper so both chart types split series (e.g. by subLabel) identically.
- *
- * Config: same shape as VizGroupedLine — xField, yFields, format.
- * Recharts groups multiple <Bar> children into a cluster automatically
- * whenever none of them is given a stackId, which is what we want here
- * (clustered, not stacked).
- */
 function VizGroupedBar({ viz, rows, isTimeSeries, periods }) {
     const [period, setPeriod] = useState('all');
 
@@ -838,10 +807,6 @@ function VizGroupedBar({ viz, rows, isTimeSeries, periods }) {
 export function DynamicViz({ viz, rows = [] }) {
     if (!viz || !rows) return null;
 
-    // Apply viz.filters BEFORE anything else touches the rows — every
-    // renderer below (KPI/bar/line/pie/table) and the time-series detector
-    // operate only on the filtered set, so a scorecard chart scoped to
-    // "metric = Prescriptions Dispensed" never sees any other KPI's rows.
     const scopedRows = applyVizFilters(rows, viz);
 
     const { isTimeSeries, periods } = detectTimeSeries(scopedRows);
@@ -871,8 +836,6 @@ export function DynamicViz({ viz, rows = [] }) {
 export function DynamicVizList({ connection, rows = [], only, kpiStyle, chartStyle }) {
     if (!connection?.visualizations?.length) return null;
 
-    // Hidden vizs stay saved (config intact, toggleable back on from Settings)
-    // but never render — filter them out before any other filtering happens.
     const visible = connection.visualizations.filter(v => !v.hidden);
 
     const vizs = only
