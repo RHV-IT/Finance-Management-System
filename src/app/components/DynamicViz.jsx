@@ -344,9 +344,9 @@ function VizKPI({ viz, rows, isTimeSeries, periods }) {
     const delta = resolveDelta(viz.delta, { viz, rows, period, periods, value });
     let badge = resolveBadge(viz.badge, value);
     // Only show the "Across N periods" note if no badge is configured
-    if (!badge && isTimeSeries && period === 'all') {
-        badge = { text: `Across ${periods.length} periods`, type: 'good' };
-    }
+    //if (!badge && isTimeSeries && period === 'all') {
+    //    badge = { text: `Across ${periods.length} periods`, type: 'good' };
+    //}
 
     const periodPill = isTimeSeries && (
         <select value={period} onChange={e => setPeriod(e.target.value)} style={{

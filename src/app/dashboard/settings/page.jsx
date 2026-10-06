@@ -8,9 +8,11 @@ import VizForm from '../../components/VizForm';
 import ManageDepartments from '../../components/ManageDepartments';
 import { useConfig, getApiKey, saveApiKey } from '../lib/useConfig';
 import { testSheetConnection, extractSheetId } from '../../dashboard/lib/googleSheets';
-import { getAllowedConnections, canManagePermissions, hasAccess } from '../lib/permissions';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
+import { getAllowedConnections, canManagePermissions, hasConnectionAccess } from '../lib/permissions';
+
+
 
 // ─── Tabs ─────────────────────────────────────────────────────
 // 'departments' only appears for someone whose login has
@@ -319,8 +321,8 @@ export default function SettingsPage() {
   // lib/permissions.js — it hides things in the UI, it doesn't stop the
   // underlying API routes from being called directly.
   const visibleConnections = connections.filter(c => {
-    if (!c || typeof c !== 'object' || Array.isArray(c)) return false; // keep the existing corrupted-entry guard
-    return hasAccess(allowedConnections, c.id);
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return false;
+    return hasConnectionAccess(allowedConnections, c);
   });
 
   const byDept = {};

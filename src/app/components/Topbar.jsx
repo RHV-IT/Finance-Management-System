@@ -1,89 +1,103 @@
 'use client';
- 
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import styles from '../styles/Topbar.module.css';
- 
-export default function Topbar({ role, onMenuToggle }) {
+
+// "pharmacy" -> "Pharmacy", "vendor-outstanding" -> "Vendor Outstanding"
+function humanize(slug) {
+  return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export default function Topbar({ onMenuToggle }) {
+  const pathname = usePathname();
+  const slug = pathname.split('/').filter(Boolean)[1] || 'overview';
+  const pageTitle = humanize(slug);
+
   const [time, setTime] = useState('');
-  const [year, setYear] = useState('2025');
- 
+  const [today, setToday] = useState('');
+  const [roleLabel, setRoleLabel] = useState('');
+  const [roleIcon, setRoleIcon] = useState('');
+
   useEffect(() => {
     const tick = () => {
       const d = new Date();
-      setTime(d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }));
+      setTime(d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+      setToday(d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
     };
     tick();
     const id = setInterval(tick, 30000);
     return () => clearInterval(id);
   }, []);
- 
-  const ROLE_LABELS = {
-    admin:       'Management / Admin',
-    revenue:     'Revenue / Billing',
-    store:       'Store Unit',
-    payables:    'Payables',
-    procurement: 'Procurement',
-    pharmacy:    'Pharmacy',
-    coo:         'COO',
-    ceo:         'CEO',
-  };
- 
+
+  // sessionStorage doesn't exist on the server, so read it in an effect.
+  useEffect(() => {
+    setRoleLabel(sessionStorage.getItem('rhv_role_label') || '');
+    setRoleIcon(sessionStorage.getItem('rhv_role_icon') || '');
+  }, []);
+
+  function handleExport() {
+    // Chrome/Edge use document.title as the default PDF filename.
+    const prevTitle = document.title;
+    document.title = `RHV - ${pageTitle} - ${new Date().toISOString().slice(0, 10)}`;
+    const restore = () => {
+      document.title = prevTitle;
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    // Small delay so the title change lands before the print dialog opens.
+    setTimeout(() => window.print(), 150);
+  }
+
+  function handleLogout() {
+    Object.keys(sessionStorage)
+      .filter(k => k.startsWith('rhv_'))
+      .forEach(k => sessionStorage.removeItem(k));
+  }
+
   return (
-    <header className={styles.topbar}>
-      {/* Hamburger (mobile) */}
-      <button
-        className={styles.topBtn}
-        onClick={onMenuToggle}
-        aria-label="Toggle menu"
-        style={{ display:'none', fontSize:'18px', padding:'4px 9px' }}
-        id="ham-btn"
-      >
-        ☰
-      </button>
- 
-      {/* Logo */}
-      <Link href="dashboard/overview" className={styles.logo}>
-        <div className={styles.logoIcon}>RHV</div>
-        <span className={styles.logoText}>RHV <span>ERP</span></span>
-      </Link>
- 
-      {/* Status indicator */}
-      <div className={`${styles.statusDot} ${styles.demo}`} title="Demo mode" />
-      <span className={styles.statusLabel}>Demo</span>
- 
-      <div className={styles.spacer} />
- 
-      {/* Year selector */}
-      <select
-        className={styles.yearSelect}
-        value={year}
-        onChange={e => setYear(e.target.value)}
-        aria-label="Fiscal year"
-      >
-        <option value="2024">FY 2024</option>
-        <option value="2025">FY 2025</option>
-        <option value="2026">FY 2026</option>
-      </select>
- 
-      <button className={styles.topBtn} onClick={() => window.print()}>⬇ PDF</button>
-      <button className={styles.topBtn}>↻ Refresh</button>
- 
-      {/* Role badge */}
-      {role && (
-        <span
-          className={styles.roleBadge}
-          style={{ background: role === 'ceo' ? '#922B21' : role === 'coo' ? '#8E44AD' : '#117A65' }}
-        >
-          {ROLE_LABELS[role] || role}
-        </span>
-      )}
- 
-      {/* Timestamp */}
-      <span className={styles.timestamp}>Updated {time}</span>
- 
-      {/* Logout */}
-      <Link href="/" className={styles.topBtn}>Logout</Link>
-    </header>
+    <>
+      <header className={styles.topbar} data-print="hide">
+        <button className={styles.menuBtn} onClick={onMenuToggle} aria-label="Toggle menu">☰</button>
+
+        <Link href="/dashboard/overview" className={styles.logo}>
+          <span className={styles.logoMark}>RHV</span>
+          <span className={styles.logoText}>ERP</span>
+        </Link>
+
+        <span className={styles.divider} />
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
+
+        <div className={styles.spacer} />
+
+        <button className={styles.exportBtn} onClick={handleExport} title="Save this page as a PDF">
+          <span aria-hidden="true">⬇</span> Export PDF
+        </button>
+
+        <span className={styles.clock}>{time}</span>
+
+        {roleLabel && (
+          <div className={styles.user}>
+            <span className={styles.userIcon}>{roleIcon || '🏥'}</span>
+            <span className={styles.userName}>{roleLabel}</span>
+          </div>
+        )}
+
+        <Link href="/" className={styles.logout} onClick={handleLogout}>Logout</Link>
+      </header>
+
+      {/* Invisible on screen, shown only on the printed page */}
+      <div className={styles.printHeader} data-print="only">
+        <div>
+          <div className={styles.printBrand}>RHV Hospital · ERP</div>
+          <div className={styles.printTitle}>{pageTitle}</div>
+        </div>
+        <div className={styles.printMeta}>
+          <div>{roleLabel}</div>
+          <div>{today}</div>
+        </div>
+      </div>
+    </>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { testSheetConnection, extractSheetId, parsePeriodFromString, fetchSheet } from '../dashboard/lib/googleSheets';
 import { getApiKey } from '../dashboard/lib/useConfig';
+import { useDepartments } from '../dashboard/lib/useDepartments';
 
 const iStyle = {
     width: '100%', padding: '8px 10px',
@@ -939,9 +940,18 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
     const [newTabName, setNewTabName] = useState('');
 
     const [newTabKey,  setNewTabKey]  = useState('');
-    const [allowedPages, setAllowedPages] = useState([]);
+    
+    const { departments } = useDepartments();
+    const [sessionAllowed, setSessionAllowed] = useState([]);
 
     const [userDepartment, setUserDepartment] = useState(null);
+
+    const pageOptions = [
+        ...PAGES.map(p => ({ value: p, label: p })),
+        ...departments
+            .filter(d => d.section && d.id && !PAGES.includes(d.id))
+            .map(d => ({ value: d.id, label: `${d.icon || '📄'} ${d.name}` })),
+    ].filter(o => sessionAllowed.includes('*') || sessionAllowed.includes(o.value));
 
     // ── Multi-table-per-sheet mode ──────────────────────────────
     // Only offered when creating a new connection — editing a bundle
@@ -987,10 +997,6 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
 
 
 
-    useEffect(() => {
-        setAllowedPages(getAllowedPages());
-    }, []);
-
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
@@ -1005,11 +1011,13 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
         const admin =
             allowed.includes('*') ||
             sessionStorage.getItem('rhv_can_manage_permissions') === '1';
-        const dept = DEPARTMENTS.find(d => d.id === role) || null;
+        const dept = DEPARTMENTS.find(d => d.id === role)
+        || (role ? { id: role, name: sessionStorage.getItem('rhv_role_label') || role } : null);
+
 
         setIsAdmin(admin);
         setUserDepartment(dept);
-        setAllowedPages(allowed.includes('*') ? PAGES : PAGES.filter(p => allowed.includes(p)));
+        setSessionAllowed(allowed);
 
         setForm(f =>
             admin
@@ -1017,6 +1025,14 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
             : { ...f, dept: dept?.name || f.dept }              // everyone else: locked to their own
         );
     }, [initial?.id]);
+
+    // below the other derived values:
+    const deptOptions = [
+        ...DEPARTMENTS,
+        ...departments
+            .filter(d => !DEPARTMENTS.some(x => x.id === d.id))
+            .map(d => ({ id: d.id, name: d.name })),
+    ];
 
     useEffect(() => {
         if (userDepartment) {
@@ -1235,7 +1251,7 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                         style={iStyle}
                     >
                         <option value="">Select department…</option>
-                        {(isAdmin ? DEPARTMENTS : userDepartment ? [userDepartment] : []).map(d => (
+                        {(isAdmin ? deptOptions : userDepartment ? [userDepartment] : []).map(d => (
                         <option key={d.id} value={d.name}>{d.name}</option>
                         ))}
                     </select>
@@ -1271,10 +1287,8 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                             >
                                 <option value="">Select page…</option>
 
-                                {allowedPages.map(page => (
-                                <option key={page} value={page}>
-                                    {page}
-                                </option>
+                                {pageOptions.map(o => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
                                 ))}
                             </select>
                         </Field>
@@ -1607,7 +1621,7 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                                         }}
                                         style={{ ...iStyle, borderColor:errors[`table-${i}-feedsPage`]?'var(--red)':undefined }}>
                                         <option value="">Select page…</option>
-                                        {PAGES.map(p=><option key={p} value={p}>{p}</option>)}
+                                        {pageOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
                                     {errors[`table-${i}-feedsPage`] && <div style={{ fontSize:10,color:'var(--red)',marginTop:3 }}>{errors[`table-${i}-feedsPage`]}</div>}
                                 </Field>

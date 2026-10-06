@@ -48,3 +48,13 @@ export function canManagePermissions() {
 export function hasAccess(list, value) {
     return Array.isArray(list) && (list.includes('*') || list.includes(value));
 }
+
+export const DEPT_RULE_PREFIX = 'dept:';
+
+// Visible if: wildcard, this connection's own id is listed, OR the list
+// has a rule for the department the connection belongs to.
+export function hasConnectionAccess(list, conn) {
+    if (!Array.isArray(list) || !conn) return false;
+    if (list.includes('*') || list.includes(conn.id)) return true;
+    return list.includes(DEPT_RULE_PREFIX + (conn.dept || 'Uncategorised'));
+}

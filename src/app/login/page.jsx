@@ -38,6 +38,7 @@ export default function LoginPage() {
     // NOT stored here — nothing after login needs it again.
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('rhv_role', selectedDept.id);
+      sessionStorage.setItem('rhv_role_icon', selectedDept.icon || '🏥');
       sessionStorage.setItem('rhv_role_label', selectedDept.name);
       sessionStorage.setItem('rhv_allowed_pages', JSON.stringify(selectedDept.allowedPages || []));
       sessionStorage.setItem('rhv_allowed_connections', JSON.stringify(selectedDept.allowedConnections || []));

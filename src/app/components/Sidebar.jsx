@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { getAllowedPages, hasAccess } from '../dashboard/lib/permissions';
 import styles from '../styles/Sidebar.module.css';
+import { useDepartments } from '../dashboard/lib/useDepartments';
 
 const NAV = [
   { section: 'Overview' },
@@ -66,7 +67,7 @@ const NAV = [
 // ONLY if at least one item under it survives the filter — otherwise
 // you'd end up with an empty "Procurement" heading and nothing beneath
 // it, which looks broken rather than just "not applicable to you."
-function filterNav(allowedPages) {
+function filterNav(allowedPages, nav) {
     const visible = [];
     let pendingSection = null;
 
@@ -87,6 +88,36 @@ function filterNav(allowedPages) {
 
     return visible;
 }
+function mergeNav(base, departments) {
+  const bySection = {};
+  departments
+    .filter(d => d.section && d.id)
+    .forEach(d => {
+      (bySection[d.section] ||= []).push({
+        href: `/dashboard/${d.id}`, icon: d.icon || '📄', label: d.name, badge: null,
+      });
+    });
+
+  const out = [];
+  const used = new Set();
+  let current = null;
+  const flush = () => {
+    if (current && bySection[current]) { out.push(...bySection[current]); used.add(current); }
+  };
+
+  base.forEach(item => {
+    if (item.section) { flush(); current = item.section; }
+    out.push(item);
+  });
+  flush();
+
+  // Safety net: a section name that isn't in NAV gets its own header.
+  Object.keys(bySection).filter(s => !used.has(s)).forEach(s => {
+    out.push({ section: s }, ...bySection[s]);
+  });
+  return out;
+}
+
 
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
@@ -95,8 +126,9 @@ export default function Sidebar({ isOpen, onClose }) {
   // ever mounts client-side (the dashboard layout gates rendering until
   // its own auth check finishes), so there's no server/client mismatch
   // to worry about here.
+  const { departments } = useDepartments();
   const [allowedPages] = useState(() => getAllowedPages());
-  const visibleNav = filterNav(allowedPages);
+  const visibleNav = filterNav(allowedPages, mergeNav(NAV, departments || []));
 
   return (
     <>

@@ -547,3 +547,48 @@ button { cursor: pointer; font-family: var(--font); }
   white-space: nowrap;
   border-width: 0;
 }
+
+
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+
+  /* 1. Un-lock the page height: print needs content to flow, not scroll */
+  html, body, body > div, #__next, #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* 2. The content area: no sidebar offset, no topbar offset, no inner scroll */
+  main {
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+  }
+
+  /* 3. Hide app chrome, show the print-only header */
+  [data-print="hide"] { display: none !important; }
+  [data-print="only"] {
+    display: flex !important; justify-content: space-between; align-items: flex-end;
+    padding-bottom: 10px; margin-bottom: 14px; border-bottom: 2px solid #117A65;
+  }
+
+  /* 4. Keep colours; don't let scroll boxes clip on paper */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  [style*="overflow"] { overflow: visible !important; max-height: none !important; }
+
+  /* 5. Pagination */
+  thead { display: table-header-group; }
+  tr, svg { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+}

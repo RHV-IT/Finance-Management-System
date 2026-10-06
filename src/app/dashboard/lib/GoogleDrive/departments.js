@@ -59,11 +59,16 @@ export async function addDepartment(department) {
         throw new Error(`PIN "${department.pin}" is already used by another department — PINs must be unique, since that's the only thing the login screen has to tell departments apart.`);
     }
 
+    if (department.id && config.departments.some(d => d.id === department.id)) {
+        throw new Error(`A department with the id "${department.id}" already exists.`);
+    }
+
     const newDept = {
         id:                    department.id || `dept-${Date.now()}`,
         name:                  department.name,
         icon:                  department.icon || '🏥',
         pin:                   String(department.pin),
+        section:               department.section || '',   // NEW
         allowedPages:          department.allowedPages || [],
         allowedConnections:    department.allowedConnections || [],
         canManagePermissions:  !!department.canManagePermissions,

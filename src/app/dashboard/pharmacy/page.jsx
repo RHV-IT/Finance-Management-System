@@ -119,7 +119,11 @@ export default function PharmacyPage() {
       {/* Overview */}
       {tab === 'overview' && (
         <div style={{ marginBottom: 14 }}>
-          <PageRenderer page="pharmacy" />
+          <PageRenderer page="pharmacy" only={['kpi']} />
+          <PageRenderer page="pharmacy" only={['bar','grouped_bar','line','grouped_line']} />
+          <PageRenderer page="pharmacy" only={['pie']} />
+          <PageRenderer page="pharmacy" only={['table']} />
+
         </div>
       )}
 

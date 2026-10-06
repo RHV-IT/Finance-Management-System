@@ -116,3 +116,70 @@
   .logoText { font-size: 13px; }
   .timestamp, .statusLabel { display: none; }
 }
+
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 56px;               /* keep whatever height your old CSS used */
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 18px;
+  background: var(--navy);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.18);
+}
+
+.menuBtn {
+  display: none;
+  background: transparent; border: none; color: #fff;
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+}
+
+.logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fff; }
+.logoMark {
+  background: var(--teal); color: #fff; font-weight: 800; font-size: 12px;
+  letter-spacing: .5px; padding: 6px 8px; border-radius: 7px;
+}
+.logoText { font-weight: 700; font-size: 13px; opacity: .85; letter-spacing: 1px; }
+
+.divider { width: 1px; height: 22px; background: rgba(255,255,255,.18); }
+.pageTitle { margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.spacer { flex: 1; }
+
+.exportBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--teal); color: #fff; font-size: 12px; font-weight: 700;
+  font-family: inherit; transition: filter .15s;
+}
+.exportBtn:hover { filter: brightness(1.12); }
+
+.clock { font-size: 12px; opacity: .65; font-variant-numeric: tabular-nums; }
+
+.user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px 4px 4px; border-radius: 99px;
+  background: rgba(255,255,255,.1);
+}
+.userIcon {
+  width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.userName { font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+.logout {
+  font-size: 12px; font-weight: 600; color: #fff; text-decoration: none;
+  padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25);
+}
+.logout:hover { background: rgba(255,255,255,.1); }
+
+/* Print-only header: hidden on screen */
+.printHeader { display: none; }
+.printBrand { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #7F8C9A; }
+.printTitle { font-size: 22px; font-weight: 800; color: #1B2A41; }
+.printMeta { text-align: right; font-size: 11px; color: #7F8C9A; line-height: 1.6; }
+
+@media (max-width: 900px) {          /* match your Sidebar's breakpoint */
+  .menuBtn { display: inline-flex; }
+  .divider, .clock, .userName { display: none; }
+}

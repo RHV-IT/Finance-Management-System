@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useDepartments } from '../dashboard/lib/useDepartments';
 import { useConfig } from '../dashboard/lib/useConfig';
+import { NAV_SECTIONS, slugify } from '../dashboard/lib/navConfig';
+import { DEPT_RULE_PREFIX } from '../dashboard/lib/permissions';
+
+const RESERVED_SLUGS = [...ALL_PAGES.map(p => p.value), 'inventory']; 
 
 const iStyle = {
     width: '100%', padding: '8px 10px',
@@ -54,6 +58,15 @@ const ALL_PAGES = [
     { value: 'archive',             label: 'Archive' },
     { value: 'settings',            label: 'Settings' },
 ];
+const { departments } = useDepartments();
+
+// in ManageDepartments:
+const pageOptions = [
+  ...ALL_PAGES,
+  ...departments.filter(d => d.section).map(d => ({ value: d.id, label: `${d.icon || '📄'} ${d.name}` })),
+];
+// <DepartmentForm pageOptions={pageOptions} ... />
+// in DepartmentForm: <AccessPicker options={pageOptions} ... />
 
 // Same idea as AccessPicker above, but specifically for connections —
 // grouped by each connection's real `dept` field, with a per-department
@@ -64,6 +77,7 @@ const ALL_PAGES = [
 // permissions actually get assigned in practice ("give Pharmacy all of
 // Pharmacy's connections," not "tick these 6 specific ones by hand").
 function ConnectionAccessPicker({ connections, selected, onChange }) {
+    const { departments } = useDepartments(); // shared store, so no extra fetch and no prop needed
     const isWildcard = selected.includes('*');
 
     function toggleWildcard() {
@@ -72,15 +86,22 @@ function ConnectionAccessPicker({ connections, selected, onChange }) {
     function toggleOne(id) {
         onChange(selected.includes(id) ? selected.filter(v => v !== id) : [...selected, id]);
     }
-    function toggleDept(deptConns) {
-        const ids = deptConns.map(c => c.id);
-        const allSelected = ids.every(id => selected.includes(id));
-        onChange(allSelected
-            ? selected.filter(id => !ids.includes(id))          // all were selected — deselect the whole group
-            : [...new Set([...selected, ...ids])]);              // some/none selected — select the whole group
+    // Ticking a department stores ONE rule instead of copying its current ids.
+    function toggleDept(dept, deptConns) {
+        const rule = DEPT_RULE_PREFIX + dept;
+        if (selected.includes(rule)) {
+            onChange(selected.filter(v => v !== rule));
+        } else {
+            const ids = deptConns.map(c => c.id);
+            // the rule already covers these ids, so drop them to keep the list tidy
+            onChange([...selected.filter(v => !ids.includes(v)), rule]);
+        }
     }
 
     const byDept = {};
+    // Departments with no connections yet still get a group, so you can grant
+    // "everything in Radiology" before its first connection exists.
+    departments.forEach(d => { if (d.name && !byDept[d.name]) byDept[d.name] = []; });
     connections.forEach(c => {
         const d = c.dept || 'Uncategorised';
         if (!byDept[d]) byDept[d] = [];
@@ -96,31 +117,33 @@ function ConnectionAccessPicker({ connections, selected, onChange }) {
 
             {!isWildcard && (
                 <div style={{ maxHeight: 280, overflowY: 'auto', padding: 10, background: '#F4F6F9', borderRadius: 8 }}>
-                    {Object.keys(byDept).length === 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>No connections exist yet.</div>
-                    )}
                     {Object.entries(byDept).map(([dept, deptConns]) => {
-                        const ids = deptConns.map(c => c.id);
-                        const allSelected  = ids.length > 0 && ids.every(id => selected.includes(id));
-                        const someSelected = ids.some(id => selected.includes(id));
+                        const ruleOn       = selected.includes(DEPT_RULE_PREFIX + dept);
+                        const someSelected = deptConns.some(c => selected.includes(c.id));
                         return (
                             <div key={dept} style={{ marginBottom: 12 }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginBottom: 4 }}>
                                     <input
                                         type="checkbox"
-                                        checked={allSelected}
-                                        ref={el => { if (el) el.indeterminate = someSelected && !allSelected; }}
-                                        onChange={() => toggleDept(deptConns)}
+                                        checked={ruleOn}
+                                        ref={el => { if (el) el.indeterminate = !ruleOn && someSelected; }}
+                                        onChange={() => toggleDept(dept, deptConns)}
                                         style={{ width: 13, height: 13, cursor: 'pointer' }}
                                     />
                                     <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--navy)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                                        🏥 {dept} — select all
+                                        🏥 {dept} — everything, including new connections
                                     </span>
                                 </label>
                                 <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     {deptConns.map(c => (
-                                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer' }}>
-                                            <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggleOne(c.id)} style={{ width: 13, height: 13, cursor: 'pointer' }} />
+                                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: ruleOn ? 'default' : 'pointer', opacity: ruleOn ? 0.6 : 1 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={ruleOn || selected.includes(c.id)}
+                                                disabled={ruleOn}
+                                                onChange={() => toggleOne(c.id)}
+                                                style={{ width: 13, height: 13, cursor: 'pointer' }}
+                                            />
                                             <span>{c.label}</span>
                                         </label>
                                     ))}
@@ -135,7 +158,7 @@ function ConnectionAccessPicker({ connections, selected, onChange }) {
 }
 
 const EMPTY_DEPT = {
-    id: '', name: '', icon: '🏥', pin: '',
+    id: '', name: '', icon: '🏥', pin: '', section: '', 
     allowedPages: [], allowedConnections: [], canManagePermissions: false,
 };
 
@@ -202,6 +225,16 @@ function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, 
         const pinTaken = existingPins.some(p => p.pin === form.pin && p.id !== form.id);
         if (pinTaken)                      { setPinError('That PIN is already used by another department — PINs must be unique.'); return; }
         setPinError('');
+
+        const id = form.id || slugify(form.name);
+        if (form.section && RESERVED_SLUGS.includes(id)) {
+            setPinError(`"${id}" is already a built-in page. Rename the department so it gets its own URL.`);
+            return;
+        }
+        if (!form.id && existingPins.some(d => d.id === id)) {
+            setPinError('A department with a very similar name already exists.');
+            return;
+        }
         onSave(form);
     }
 
@@ -227,6 +260,17 @@ function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, 
                         style={{ ...iStyle, fontFamily: 'monospace', letterSpacing: 2 }}
                         disabled={isEditing && form.id === 'admin'} // guard rail: don't let Admin's PIN get changed from this generic form by accident — edit it deliberately if truly needed
                     />
+                </Field>
+                <Field label="Show as a page in the sidebar under…">
+                    <select value={form.section || ''} onChange={e => set('section', e.target.value)} style={iStyle}>
+                        <option value="">— No page (PIN & permissions only) —</option>
+                        {NAV_SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {form.section && (
+                        <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
+                        URL: /dashboard/{form.id || slugify(form.name) || '…'}
+                        </div>
+                    )}
                 </Field>
             </div>
 
@@ -268,6 +312,17 @@ function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, 
     );
 }
 
+
+function describeConnectionAccess(list = []) {
+    if (list.includes('*')) return 'All connections';
+    const depts = list.filter(v => v.startsWith(DEPT_RULE_PREFIX)).map(v => v.slice(DEPT_RULE_PREFIX.length));
+    const ids = list.length - depts.length;
+    const parts = [];
+    if (depts.length) parts.push(`all of ${depts.join(', ')}`);
+    if (ids) parts.push(`${ids} individual`);
+    return parts.length ? parts.join(' + ') : 'No connections';
+}
+
 export default function ManageDepartments() {
     const { departments, loading, error, saving, mutations } = useDepartments();
     const { connections } = useConfig();
@@ -279,12 +334,14 @@ export default function ManageDepartments() {
         .map(c => ({ id: c.id, label: c.label || c.module || c.id, dept: c.dept || 'Uncategorised' }));
 
     async function handleSaveDept(form) {
-        if (form.id) {
-            await mutations.updateDepartment(form.id, form);
-        } else {
-            const id = form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `dept-${Date.now()}`;
-            await mutations.addDepartment({ ...form, id });
+        const id = form.id || slugify(form.name) || `dept-${Date.now()}`;
+        let allowedPages = form.allowedPages || [];
+        if (form.section && !allowedPages.includes('*') && !allowedPages.includes(id)) {
+            allowedPages = [...allowedPages, id];
         }
+        const payload = { ...form, id, allowedPages };
+        if (form.id) await mutations.updateDepartment(form.id, payload);
+        else await mutations.addDepartment(payload);
         setEditingDept(null);
     }
 
@@ -350,7 +407,8 @@ export default function ManageDepartments() {
                                     {' · '}
                                     {dept.allowedPages?.includes('*') ? 'All pages' : `${(dept.allowedPages || []).length} page(s)`}
                                     {' · '}
-                                    {dept.allowedConnections?.includes('*') ? 'All connections' : `${(dept.allowedConnections || []).length} connection(s)`}
+                                    {/*dept.allowedConnections?.includes('*') ? 'All connections' : `${(dept.allowedConnections || []).length} connection(s)`*/}
+                                    {describeConnectionAccess(dept.allowedConnections)}
                                 </div>
                             </div>
                             <button onClick={() => setEditingDept(dept)} style={{ padding: '5px 12px', fontSize: 10, fontWeight: 600, background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>
