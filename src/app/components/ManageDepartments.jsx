@@ -6,8 +6,6 @@ import { useConfig } from '../dashboard/lib/useConfig';
 import { NAV_SECTIONS, slugify } from '../dashboard/lib/navConfig';
 import { DEPT_RULE_PREFIX } from '../dashboard/lib/permissions';
 
-const RESERVED_SLUGS = [...ALL_PAGES.map(p => p.value), 'inventory']; 
-
 const iStyle = {
     width: '100%', padding: '8px 10px',
     border: '1.5px solid var(--border)', borderRadius: 7,
@@ -58,13 +56,12 @@ const ALL_PAGES = [
     { value: 'archive',             label: 'Archive' },
     { value: 'settings',            label: 'Settings' },
 ];
-const { departments } = useDepartments();
 
-// in ManageDepartments:
-const pageOptions = [
-  ...ALL_PAGES,
-  ...departments.filter(d => d.section).map(d => ({ value: d.id, label: `${d.icon || '📄'} ${d.name}` })),
-];
+
+
+const RESERVED_SLUGS = [...ALL_PAGES.map(p => p.value), 'inventory']; 
+
+
 // <DepartmentForm pageOptions={pageOptions} ... />
 // in DepartmentForm: <AccessPicker options={pageOptions} ... />
 
@@ -212,7 +209,7 @@ function AccessPicker({ options, selected, onChange, allLabel }) {
     );
 }
 
-function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, existingPins }) {
+function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, existingPins, pageOptions }) {
     const [form, setForm] = useState(initial || EMPTY_DEPT);
     const [pinError, setPinError] = useState('');
     const isEditing = !!initial?.id;
@@ -278,7 +275,7 @@ function DepartmentForm({ initial, connectionOptions, onSave, onCancel, saving, 
 
             <Field label="Which pages can this department see?">
                 <AccessPicker
-                    options={ALL_PAGES}
+                    options={pageOptions}
                     selected={form.allowedPages || []}
                     onChange={v => set('allowedPages', v)}
                     allLabel="Full access — every page, including new ones added later"
@@ -329,6 +326,12 @@ export default function ManageDepartments() {
 
     const [editingDept, setEditingDept] = useState(null); // department object, or 'new', or null (no form open)
 
+    
+    const pageOptions = [
+    ...ALL_PAGES,
+    ...departments.filter(d => d.section).map(d => ({ value: d.id, label: `${d.icon || '📄'} ${d.name}` })),
+    ];
+
     const connectionOptions = connections
         .filter(c => c && typeof c === 'object' && !Array.isArray(c))
         .map(c => ({ id: c.id, label: c.label || c.module || c.id, dept: c.dept || 'Uncategorised' }));
@@ -371,6 +374,7 @@ export default function ManageDepartments() {
 
             {editingDept === 'new' && (
                 <DepartmentForm
+                    pageOptions={pageOptions}
                     connectionOptions={connectionOptions}
                     existingPins={departments}
                     onSave={handleSaveDept}
@@ -384,6 +388,7 @@ export default function ManageDepartments() {
                     {editingDept?.id === dept.id ? (
                         <DepartmentForm
                             initial={dept}
+                            pageOptions={pageOptions}
                             connectionOptions={connectionOptions}
                             existingPins={departments}
                             onSave={handleSaveDept}
