@@ -71,7 +71,7 @@ function filterNav(allowedPages, nav) {
     const visible = [];
     let pendingSection = null;
 
-    NAV.forEach(item => {
+    nav.forEach(item => {
         if (item.section) {
             pendingSection = item; // hold it — only pushed once we know it has a visible child
             return;

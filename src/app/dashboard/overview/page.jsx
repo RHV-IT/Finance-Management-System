@@ -35,6 +35,7 @@ import { useConfig } from '../lib/ConfigProvider';
 import { COLORS, fmt, fmtM, MONTHLY_TARGET } from '../lib/data';
 import styles from '../../styles/Layout.module.css';
 import tableStyles from '../../styles/Table.module.css';
+import PageRenderer from '../../components/PageRenderer';
  
 const INCIDENT_API = process.env.NEXT_PUBLIC_INCIDENT_API_URL || null;
 const n = v => parseFloat(String(v || 0).replace(/[₦,]/g, '')) || 0;
@@ -220,6 +221,7 @@ export default function OverviewPage() {
       {rev.error ? <MiniError label="Revenue & Expenses" /> : rev.loading ? <MiniLoading cols={4} /> : (
         <>
           <div className={styles.kpiGrid}>
+            {/* ── Hardcoded KPI cards (disabled — now driven by PageRenderer) ──
             <KPICard
               label="Total Revenue YTD"
               value={fmt(tRev)}
@@ -252,9 +254,16 @@ export default function OverviewPage() {
               deltaType={expR < 0.6 ? 'up' : 'down'}
               color={expR < 0.6 ? 'green' : 'red'}
             />
+            ── end hardcoded KPI cards ── */}
+            <PageRenderer page="overview" module="revenue_ledger" only={['kpi']} />
+          </div>
+          <div>
+            <PageRenderer page="overview" module="revenue_ledger" only={['bar','grouped_bar','line','grouped_line']} />
+            <PageRenderer page="overview" module="revenue_ledger" only={['pie']} />
           </div>
  
-          {/* Debtors + Payables */}
+          {/* Debtors + Payables
+              ── Hardcoded KPI cards (disabled) ──
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
             {!debtor.error && !debtor.loading && (
               <>
@@ -297,8 +306,9 @@ export default function OverviewPage() {
               </>
             )}
           </div>
+          ── end hardcoded KPI cards ── */}
  
-          {/* Revenue charts */}
+          {/* Revenue charts 
           {monthlyChartData.length > 0 && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
@@ -324,14 +334,20 @@ export default function OverviewPage() {
                 )}
               </div>
             </>
-          )}
+          )}*/}
  
-          {/* Any additional vizs configured on the revenue connection */}
+          {/* ── DynamicVizList (disabled) — additional vizs configured on the revenue connection ──
           {revConn?.visualizations?.filter(v => v.type === 'bar' || v.type === 'grouped_bar' || v.type === 'line').length > 0 && (
             <div style={{ marginTop: 14 }}>
               <DynamicVizList connection={revConn} rows={rev.rows} only={['bar','grouped_bar','line']} />
             </div>
           )}
+          ── end DynamicVizList ── */}
+
+          <PageRenderer page="overview" module="debtors" only={['kpi']} />
+          
+          <PageRenderer page="overview" module="debtors" only={['bar','grouped_bar','line','grouped_line']} />
+          <PageRenderer page="overview" module="debtors" only={['pie']} />
         </>
       )}
  
@@ -343,6 +359,7 @@ export default function OverviewPage() {
       {stock.error && srv.error && siv.error ? <MiniError label="Inventory" /> : stock.loading ? <MiniLoading cols={4} /> : (
         <>
           <div className={styles.kpiGrid}>
+            {/* ── Hardcoded KPI cards (disabled — now driven by PageRenderer) ──
             <KPICard
               label="Total Stock Value"
               value={fmt(totalStockValue)}
@@ -373,37 +390,23 @@ export default function OverviewPage() {
               badgeType={(reorderAlerts || belowReorder) > 0 ? 'bad' : 'good'}
               color={(reorderAlerts || belowReorder) > 0 ? 'red' : 'green'}
             />
+            ── end hardcoded KPI cards ── */}
+            <PageRenderer page="overview" module="stock_register" only={['kpi']} />
+            <PageRenderer page="overview" module="stock_out" only={['kpi']} />
           </div>
+          <div>
+            <PageRenderer page="overview" module="stock_out" only={['bar','grouped_bar','line','grouped_line']} />
+            <PageRenderer page="overview" module="stock_register" only={['pie']} />
+            <PageRenderer page="overview" module="stock_out" only={['pie']} />
+          </div>
+          {/* ── DynamicVizList (disabled) — additional vizs configured on the stock connection ──
           {stockConn?.visualizations?.filter(v => v.type !== 'table').length > 0 && (
             <div style={{ marginTop: 14 }}>
               <DynamicVizList connection={stockConn} rows={stock.rows} only={['bar','grouped_bar','pie']} />
             </div>
           )}
+          ── end DynamicVizList ── */}
         </>
-      )}
- 
-      {/* ═══════════════════════════════════════════════════════
-          PROCUREMENT
-      ═══════════════════════════════════════════════════════ */}
-      <SectionTitle emoji="🛒">Procurement</SectionTitle>
- 
-      {po.error ? <MiniError label="Purchase Orders" /> : po.loading ? <MiniLoading cols={2} /> : (
-        <div className={styles.kpiGrid}>
-          <KPICard
-            label="Open Purchase Orders"
-            value={openPOs}
-            delta={`${po.rows.length} total POs`}
-            deltaType={openPOs > 0 ? 'warn' : 'up'}
-            color={openPOs > 0 ? 'amber' : 'green'}
-          />
-          <KPICard
-            label="Total PO Value"
-            value={fmt(totalPOVal)}
-            delta="All purchase orders"
-            deltaType="up"
-            color="blue"
-          />
-        </div>
       )}
  
       {/* ═══════════════════════════════════════════════════════
@@ -412,22 +415,31 @@ export default function OverviewPage() {
       <SectionTitle emoji="💊">Pharmacy</SectionTitle>
  
       {pharm.error ? <MiniError label="Drug Dispensing" /> : pharm.loading ? <MiniLoading cols={2} /> : (
-        <div className={styles.kpiGrid}>
-          <KPICard
-            label="Dispensing Value"
-            value={fmt(totalDispensed)}
-            delta={`${pharm.rows.length} prescriptions`}
-            deltaType="up"
-            color="purple"
-          />
-          <KPICard
-            label="Total Prescriptions"
-            value={pharm.rows.length}
-            delta="Records fetched"
-            deltaType="up"
-            color="blue"
-          />
-        </div>
+        <>
+          <div className={styles.kpiGrid}>
+            {/* ── Hardcoded KPI cards (disabled — now driven by PageRenderer) ──
+            <KPICard
+              label="Dispensing Value"
+              value={fmt(totalDispensed)}
+              delta={`${pharm.rows.length} prescriptions`}
+              deltaType="up"
+              color="purple"
+            />
+            <KPICard
+              label="Total Prescriptions"
+              value={pharm.rows.length}
+              delta="Records fetched"
+              deltaType="up"
+              color="blue"
+            />
+            ── end hardcoded KPI cards ── */}
+            <PageRenderer page="overview" module="drug_dispensing" only={['kpi']} />
+          </div>
+          <div>
+            <PageRenderer page="overview" module="drug_dispensing" only={['bar','grouped_bar','line','grouped_line']} />
+            <PageRenderer page="overview" module="drug_dispensing" only={['pie']} />
+          </div>
+        </>
       )}
  
       {/* ═══════════════════════════════════════════════════════
@@ -449,6 +461,7 @@ export default function OverviewPage() {
           {incidents && !incidentsLoading && (
             <>
               <div className={styles.kpiGrid}>
+                {/* ── Hardcoded KPI cards (disabled — now driven by PageRenderer) ──
                 <KPICard
                   label="Total Incidents"
                   value={incidents.total ?? incidents.totalIncidents ?? '—'}
@@ -499,6 +512,12 @@ export default function OverviewPage() {
                     color="purple"
                   />
                 )}
+                ── end hardcoded KPI cards ── */}
+                <PageRenderer page="overview" module="" only={['kpi']} />
+              </div>
+              <div>
+                <PageRenderer page="overview" module="" only={['bar','grouped_bar','line','grouped_line']} />
+                <PageRenderer page="overview" module="" only={['pie']} />
               </div>
  
               {/* Recent incidents table */}
