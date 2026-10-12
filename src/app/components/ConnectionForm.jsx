@@ -1235,13 +1235,13 @@ export default function ConnectionForm({ initial, onSave, onCancel, saving, onRe
                 </button>
             )*/}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <Field label={multiTable ? 'ID prefix (each table gets its own suffix)' : 'ID (unique slug, no spaces)'}>
+               {/* <Field label={multiTable ? 'ID prefix (each table gets its own suffix)' : 'ID (unique slug, no spaces)'}>
                     <input value={form.id} onChange={e=>setField('id',e.target.value)}
                         placeholder="store-siv-issues"
                         style={{ ...iStyle, borderColor:errors.id?'var(--red)':undefined }}
                         disabled={isEditing} />
                     {errors.id && <div style={{ fontSize:10,color:'var(--red)',marginTop:3 }}>{errors.id}</div>}
-                </Field>
+                </Field>*/}
 
                 <Field label="Department">
                     <select
